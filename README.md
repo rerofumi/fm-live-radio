@@ -79,7 +79,7 @@ mise run build
 - RSS URLs（1行1URL）
 - LLM Base URL / Model（OpenAI互換, ollama や LMstudio も想定）
 - Gemini API Key
-- TTS Model / Voice
+- TTS Model / Voice ("gemini-2.5-flash-preview-tts", "Aoede" あたりを設定)
 - Talk cycle（BGM→Talkの曲数）
 - BGM / Talk volume
 
