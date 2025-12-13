@@ -1,0 +1,8 @@
+[tools]
+node = "lts"
+go = "latest"
+
+[tasks]
+setup = { run = "go install github.com/wailsapp/wails/v2/cmd/wails@latest", description = "Install Wails CLI" }
+dev = { run = "wails dev", description = "Run Wails in development mode" }
+build = { run = "wails build", description = "Build the Wails application" }
