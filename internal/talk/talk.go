@@ -42,22 +42,17 @@ func New(tempDir string) *Service {
 	}
 }
 
-func (s *Service) Generate(ctx context.Context, cfg domain.AppConfig, hist domain.History) (Result, domain.History, error) {
+func (s *Service) Generate(ctx context.Context, cfg domain.AppConfig, used map[string]bool) (Result, error) {
 	if !cfg.Talk.Enabled {
-		return Result{}, hist, ErrDisabled
+		return Result{}, ErrDisabled
 	}
 	if len(cfg.RSSUrls) == 0 {
-		return Result{}, hist, ErrNotReady
-	}
-
-	used := map[string]bool{}
-	for _, u := range hist.UsedArticleUrls {
-		used[u] = true
+		return Result{}, ErrNotReady
 	}
 
 	art, err := s.picker.Pick(ctx, cfg.RSSUrls, used)
 	if err != nil {
-		return Result{}, hist, err
+		return Result{}, err
 	}
 
 	s.llm.BaseURL = cfg.LLM.BaseURL
@@ -69,7 +64,7 @@ func (s *Service) Generate(ctx context.Context, cfg domain.AppConfig, hist domai
 
 	script, err := s.llm.Complete(ctx, systemPrompt, userPrompt)
 	if err != nil {
-		return Result{}, hist, err
+		return Result{}, err
 	}
 
 	s.tts.APIKey = cfg.GeminiAPIKey
@@ -81,19 +76,12 @@ func (s *Service) Generate(ctx context.Context, cfg domain.AppConfig, hist domai
 
 	wav, err := s.tts.SynthesizeWav(ctx, script)
 	if err != nil {
-		return Result{}, hist, err
+		return Result{}, err
 	}
 
 	audioPath, err := s.writeTempAudio(wav, ".wav")
 	if err != nil {
-		return Result{}, hist, err
-	}
-
-	// update history
-	newHist := hist
-	newHist.UsedArticleUrls = append(newHist.UsedArticleUrls, art.Link)
-	if len(newHist.UsedArticleUrls) > 500 {
-		newHist.UsedArticleUrls = newHist.UsedArticleUrls[len(newHist.UsedArticleUrls)-500:]
+		return Result{}, err
 	}
 
 	return Result{
@@ -101,7 +89,7 @@ func (s *Service) Generate(ctx context.Context, cfg domain.AppConfig, hist domai
 		ArticleURL:   art.Link,
 		ArticleTitle: art.Title,
 		FeedURL:      art.FeedURL,
-	}, newHist, nil
+	}, nil
 }
 
 func buildUserPrompt(a rss.Article) string {

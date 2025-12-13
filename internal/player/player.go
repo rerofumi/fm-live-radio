@@ -25,6 +25,10 @@ type Player struct {
 	bgmCountSinceLastTalk int
 	lastTrackPath         string
 	pendingSilence        bool
+
+	prefetchedTalk *talk.Result
+	prefetching    bool
+	cancelPrefetch context.CancelFunc
 }
 
 func New(cfg domain.AppConfig) *Player {
@@ -39,6 +43,7 @@ func (p *Player) UpdateConfig(cfg domain.AppConfig) {
 	p.bgmCountSinceLastTalk = 0
 	p.lastTrackPath = ""
 	p.pendingSilence = true
+	p.clearPrefetchLocked()
 }
 
 func (p *Player) NextItem(audioSrv *audio.Server, talkSvc *talk.Service, req domain.NextItemRequest, hist domain.History) (domain.PlayableItem, domain.History, bool, error) {
@@ -77,14 +82,39 @@ func (p *Player) NextItem(audioSrv *audio.Server, talkSvc *talk.Service, req dom
 
 	// Decide next kind.
 	wantTalk := cfg.Talk.Enabled && (p.bgmCountSinceLastTalk >= cycle)
+	prefetched := p.prefetchedTalk
+	if wantTalk && prefetched != nil {
+		// Consume prefetched talk.
+		p.prefetchedTalk = nil
+		p.bgmCountSinceLastTalk = 0
+		p.pendingSilence = true
+		p.mu.Unlock()
+
+		url, err := audioSrv.RegisterFile(prefetched.AudioPath, 10*time.Minute)
+		if err != nil {
+			return domain.PlayableItem{}, hist, false, err
+		}
+		newHist := appendHistory(hist, prefetched.ArticleURL)
+		return domain.PlayableItem{
+			ID:         uuid.NewString(),
+			Kind:       domain.PlayableKindTalk,
+			URL:        url,
+			Title:      prefetched.ArticleTitle,
+			TopicTitle: prefetched.ArticleTitle,
+			Source: domain.PlayableSource{
+				RssURL:     prefetched.FeedURL,
+				ArticleURL: prefetched.ArticleURL,
+			},
+		}, newHist, true, nil
+	}
 	p.mu.Unlock()
 
 	if wantTalk && talkSvc != nil {
-		// TTS can be slow; keep this longer than the HTTP client's timeout.
 		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 		defer cancel()
 
-		res, newHist, err := talkSvc.Generate(ctx, cfg, hist)
+		used := buildUsedMap(hist, nil)
+		res, err := talkSvc.Generate(ctx, cfg, used)
 		if err == nil {
 			url, err2 := audioSrv.RegisterFile(res.AudioPath, 10*time.Minute)
 			if err2 == nil {
@@ -92,6 +122,7 @@ func (p *Player) NextItem(audioSrv *audio.Server, talkSvc *talk.Service, req dom
 				p.bgmCountSinceLastTalk = 0
 				p.pendingSilence = true
 				p.mu.Unlock()
+				newHist := appendHistory(hist, res.ArticleURL)
 				return domain.PlayableItem{
 					ID:         uuid.NewString(),
 					Kind:       domain.PlayableKindTalk,
@@ -111,13 +142,13 @@ func (p *Player) NextItem(audioSrv *audio.Server, talkSvc *talk.Service, req dom
 		p.bgmCountSinceLastTalk = 0
 		p.pendingSilence = true
 		p.mu.Unlock()
-		return p.pickBGM(audioSrv, cfg, genre, hist)
+		return p.pickBGM(audioSrv, talkSvc, cfg, genre, hist)
 	}
 
-	return p.pickBGM(audioSrv, cfg, genre, hist)
+	return p.pickBGM(audioSrv, talkSvc, cfg, genre, hist)
 }
 
-func (p *Player) pickBGM(audioSrv *audio.Server, cfg domain.AppConfig, genre string, hist domain.History) (domain.PlayableItem, domain.History, bool, error) {
+func (p *Player) pickBGM(audioSrv *audio.Server, talkSvc *talk.Service, cfg domain.AppConfig, genre string, hist domain.History) (domain.PlayableItem, domain.History, bool, error) {
 	tracks, err := bgm.ListTracks(cfg.BGMRootPath, genre)
 	if err != nil {
 		return domain.PlayableItem{}, hist, false, err
@@ -131,7 +162,17 @@ func (p *Player) pickBGM(audioSrv *audio.Server, cfg domain.AppConfig, genre str
 	p.lastTrackPath = t.Path
 	p.bgmCountSinceLastTalk++
 	p.pendingSilence = true
+	count := p.bgmCountSinceLastTalk
 	p.mu.Unlock()
+
+	// Opportunistic prefetch when we are close to talk slot.
+	cycle := cfg.Talk.CycleBgmCount
+	if cycle <= 0 {
+		cycle = 3
+	}
+	if talkSvc != nil && cfg.Talk.Enabled && count >= cycle-1 {
+		p.PrefetchTalk(talkSvc, cfg, hist)
+	}
 
 	url, err := audioSrv.RegisterFile(t.Path, 10*time.Minute)
 	if err != nil {
@@ -151,10 +192,89 @@ func (p *Player) pickBGM(audioSrv *audio.Server, cfg domain.AppConfig, genre str
 }
 
 func (p *Player) Skip(audioSrv *audio.Server, talkSvc *talk.Service, req domain.NextItemRequest, hist domain.History) (domain.PlayableItem, domain.History, bool, error) {
-	// Skipping consumes current slot; we just ask for the next.
+	// Skipping consumes current slot.
+	p.mu.Lock()
+	p.clearPrefetchLocked()
+	p.mu.Unlock()
 	return p.NextItem(audioSrv, talkSvc, req, hist)
 }
 
-func (p *Player) PrefetchTalk() {
-	// noop for now
+// PrefetchTalk starts generating next talk in the background if we are close to the talk slot.
+// It does not mutate history; history is committed when the prefetched talk is actually consumed.
+func (p *Player) PrefetchTalk(talkSvc *talk.Service, cfg domain.AppConfig, hist domain.History) {
+	if talkSvc == nil {
+		return
+	}
+	cycle := cfg.Talk.CycleBgmCount
+	if cycle <= 0 {
+		cycle = 3
+	}
+
+	p.mu.Lock()
+	if !cfg.Talk.Enabled || p.prefetchedTalk != nil || p.prefetching {
+		p.mu.Unlock()
+		return
+	}
+	// Start prefetch when next is near: after (cycle-1) BGM played since last talk.
+	if p.bgmCountSinceLastTalk < cycle-1 {
+		p.mu.Unlock()
+		return
+	}
+	p.prefetching = true
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	p.cancelPrefetch = cancel
+	p.mu.Unlock()
+
+	go func() {
+		defer func() {
+			p.mu.Lock()
+			p.prefetching = false
+			p.cancelPrefetch = nil
+			p.mu.Unlock()
+		}()
+
+		used := buildUsedMap(hist, nil)
+		res, err := talkSvc.Generate(ctx, cfg, used)
+		if err != nil {
+			log.Printf("WARN: talk prefetch failed: %v", err)
+			return
+		}
+		p.mu.Lock()
+		p.prefetchedTalk = &res
+		p.mu.Unlock()
+	}()
+}
+
+func (p *Player) clearPrefetchLocked() {
+	if p.cancelPrefetch != nil {
+		p.cancelPrefetch()
+		p.cancelPrefetch = nil
+	}
+	p.prefetchedTalk = nil
+	p.prefetching = false
+}
+
+func buildUsedMap(hist domain.History, extra map[string]bool) map[string]bool {
+	used := map[string]bool{}
+	for _, u := range hist.UsedArticleUrls {
+		used[u] = true
+	}
+	for k, v := range extra {
+		if v {
+			used[k] = true
+		}
+	}
+	return used
+}
+
+func appendHistory(hist domain.History, url string) domain.History {
+	if url == "" {
+		return hist
+	}
+	newHist := hist
+	newHist.UsedArticleUrls = append(newHist.UsedArticleUrls, url)
+	if len(newHist.UsedArticleUrls) > 500 {
+		newHist.UsedArticleUrls = newHist.UsedArticleUrls[len(newHist.UsedArticleUrls)-500:]
+	}
+	return newHist
 }

@@ -198,9 +198,12 @@ func (a *App) SkipCurrent(req domain.NextItemRequest) (domain.PlayableItem, erro
 func (a *App) PrefetchTalk() {
 	a.mu.Lock()
 	p := a.player
+	ts := a.talkSvc
+	cfg := a.cfg
+	h := a.history
 	a.mu.Unlock()
 	if p != nil {
-		p.PrefetchTalk()
+		p.PrefetchTalk(ts, cfg, h)
 	}
 	// small delay to keep binding non-blocking even after implementation
 	time.Sleep(0)

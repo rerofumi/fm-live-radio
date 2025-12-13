@@ -21,7 +21,7 @@
 ### 0.3 用語
 - **BGM**: ユーザー指定ルート配下のサブフォルダ（ジャンル）にある音楽ファイル
 - **Talk**: RSS記事をネタにしたAI生成トーク音声（約1分）
-- **サイクル**: `BGM×3 → Talk×1` の繰り返し
+- **サイクル**: `BGM×N → Talk×1` の繰り返し（Nは設定可能。デフォルト3）
 - **History**: Talkで利用済みの記事URL（重複排除のため）
 
 ---
@@ -39,7 +39,7 @@
 - 画面描画、ユーザー操作
 - Audio再生（`<audio>` または `new Audio()`）
 - `onended` / `onerror` を起点に次アイテム要求
-- 簡易状態（再生中/停止、音量、現在表示メタ情報）
+- 簡易状態（再生中/停止、音量（BGM/Talk別）、現在表示メタ情報）
 
 #### Backend（Go）
 - BGMルートをスキャンし、ジャンル一覧と曲一覧を構築
@@ -85,6 +85,8 @@
 - 再生 / 一時停止
 - スキップ（現在の音源を停止し、次を要求）
 - 音量スライダー（0.0〜1.0）
+  - BGM Volume
+  - Talk Volume
 - 設定ボタン（モーダルを開く）
 
 #### 挙動
@@ -104,6 +106,13 @@
   - Base URL（例: `http://localhost:11434/v1` や OpenRouter のURL）
   - API Key（必要な場合）
   - Model
+- トークまでのBGM曲数（cycleBgmCount）
+- 音量
+  - BGM Volume
+  - Talk Volume
+- TTS設定（Gemini）
+  - Model
+  - Voice
 
 ※ RSSは**初期値は空**（プリセットは提供しない）。
 
@@ -129,6 +138,8 @@
   "selectedGenre": "Lo-Fi",
   "rssUrls": [],
   "geminiApiKey": "***",
+  "bgmVolume": 0.8,
+  "talkVolume": 1.0,
   "talk": {
     "enabled": true,
     "cycleBgmCount": 3,
@@ -141,6 +152,11 @@
     "baseUrl": "http://localhost:11434/v1",
     "apiKey": "",
     "model": "gpt-4o-mini"
+  },
+  "tts": {
+    "enabled": true,
+    "model": "gemini-2.5-flash-preview-tts",
+    "voice": "Kore"
   }
 }
 ```
@@ -284,10 +300,11 @@
 ### 8.3 失敗時
 - APIキー不備 / ネットワーク / APIエラー → Talkスキップ
 
-#### 8.4 実装方針（Gemini AIライブラリ経由）
-- TTS呼び出しは **Gemini AIライブラリ（SDK）** を使用し、SDKが提供するクライアント経由で実行する。
-  - 例（Go想定）: `github.com/google/generative-ai-go/genai`
-- 直接HTTPで叩く実装は行わない（SDKに寄せて保守性を優先）。
+#### 8.4 実装方針（Gemini REST）
+- Go向け公式SDKではTTSが未サポートのため、本版は **Gemini API のREST** を利用して実装する。
+- `generateContent` に `responseModalities: ["AUDIO"]` を指定し、`inlineData`（base64）で返る音声データを受け取る。
+- 返却が生PCM（例: 24kHz/mono/PCM16）となる場合があるため、フロント再生互換性のため **WAVコンテナにラップして保存**する。
+- タイムアウト/遅延が起きうるため、一定のタイムアウトと簡易リトライを設け、失敗時はTalkをスキップしてBGMへフォールバック。
 
 ---
 
@@ -383,7 +400,7 @@ type PlayableItem = {
 
 1. BGMルート指定後、ジャンル一覧が表示され選択できる
 2. 選択ジャンルからBGMがシャッフル再生される
-3. BGMを3曲再生した後にTalkが再生される（Talk失敗時はBGMにフォールバックしサイクル継続）
+3. `cycleBgmCount` 曲再生した後にTalkが再生される（Talk失敗時はBGMにフォールバックしサイクル継続）
 4. RSS複数登録ができ、Talkネタはランダムに選ばれる
 5. 同一記事URLは再利用されない（Historyにより重複排除）
 6. アプリ終了→起動で設定（APIキー/BGMパス/前回ジャンル/History）が復元される
@@ -397,7 +414,7 @@ type PlayableItem = {
   - BGMスキャン（ジャンル列挙、トラック列挙、ランダム選択）
   - RSS取得（複数URL、未使用選定）
   - LLMクライアント（OpenAI互換）
-  - TTSクライアント（Gemini AIライブラリ経由）
+  - TTSクライアント（Gemini REST）
   - Talk生成パイプライン（RSS→LLM→TTS→temp保存）
   - 音声配信（ローカルHTTP、token化、パス制限）
 
@@ -413,7 +430,7 @@ type PlayableItem = {
 1. 音声配信方式の詳細: ローカルHTTPサーバのルーティング/認可（token化）/キャッシュ方針
 2. LLM設定の必須項目: baseUrl/model/apiKey の必須判定とバリデーション
 3. History保持上限（件数/期間）
-4. Gemini TTS（SDK）で利用するモデル/音声パラメータ（話速・声質）の固定値
+4. Gemini TTS（REST）で利用するモデル/voiceName の候補一覧（UIは将来プルダウン化）
 
 ---
 
