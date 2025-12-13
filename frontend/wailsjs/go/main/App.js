@@ -6,6 +6,10 @@ export function GetNextItem(arg1) {
   return window['go']['main']['App']['GetNextItem'](arg1);
 }
 
+export function GetStatus() {
+  return window['go']['main']['App']['GetStatus']();
+}
+
 export function LoadConfig() {
   return window['go']['main']['App']['LoadConfig']();
 }

@@ -100,6 +100,20 @@ export namespace domain {
 		    return a;
 		}
 	}
+	export class AppStatus {
+	    talkPrefetching: boolean;
+	    talkReady: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new AppStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.talkPrefetching = source["talkPrefetching"];
+	        this.talkReady = source["talkReady"];
+	    }
+	}
 	
 	export class NextItemRequest {
 	    selectedGenre: string;

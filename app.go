@@ -194,7 +194,18 @@ func (a *App) SkipCurrent(req domain.NextItemRequest) (domain.PlayableItem, erro
 	return item, nil
 }
 
-// PrefetchTalk kicks off talk generation prefetch (noop for now).
+// GetStatus returns lightweight runtime status for UI indicators.
+func (a *App) GetStatus() (domain.AppStatus, error) {
+	a.mu.Lock()
+	p := a.player
+	a.mu.Unlock()
+	if p == nil {
+		return domain.AppStatus{}, nil
+	}
+	return p.Status(), nil
+}
+
+// PrefetchTalk kicks off talk generation prefetch.
 func (a *App) PrefetchTalk() {
 	a.mu.Lock()
 	p := a.player

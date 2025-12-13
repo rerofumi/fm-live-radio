@@ -4,6 +4,8 @@ import {domain} from '../models';
 
 export function GetNextItem(arg1:domain.NextItemRequest):Promise<domain.PlayableItem>;
 
+export function GetStatus():Promise<domain.AppStatus>;
+
 export function LoadConfig():Promise<domain.AppConfig>;
 
 export function PrefetchTalk():Promise<void>;

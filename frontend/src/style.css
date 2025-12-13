@@ -1,26 +1,72 @@
+:root {
+  --bg0: #070a12;
+  --bg1: #0b1220;
+  --panel: rgba(255, 255, 255, 0.06);
+  --panel2: rgba(255, 255, 255, 0.08);
+  --border: rgba(255, 255, 255, 0.12);
+  --text: rgba(255, 255, 255, 0.92);
+  --muted: rgba(255, 255, 255, 0.65);
+  --danger: rgba(248, 113, 113, 0.22);
+  --danger-border: rgba(248, 113, 113, 0.45);
+  --shadow: 0 18px 60px rgba(0, 0, 0, 0.45);
+  --radius: 14px;
+}
+
+html, body {
+  height: 100%;
+}
+
 html {
-    background-color: rgba(27, 38, 54, 1);
-    text-align: center;
-    color: white;
+  background: radial-gradient(900px 500px at 10% 10%, rgba(59, 130, 246, 0.22), transparent 60%),
+    radial-gradient(900px 500px at 90% 0%, rgba(147, 51, 234, 0.18), transparent 60%),
+    linear-gradient(180deg, var(--bg0), var(--bg1));
+  color: var(--text);
 }
 
 body {
-    margin: 0;
-    color: white;
-    font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
+  margin: 0;
+  color: var(--text);
+  font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
     "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
     sans-serif;
 }
 
 @font-face {
-    font-family: "Nunito";
-    font-style: normal;
-    font-weight: 400;
-    src: local(""),
+  font-family: "Nunito";
+  font-style: normal;
+  font-weight: 400;
+  src: local(""),
     url("assets/fonts/nunito-v16-latin-regular.woff2") format("woff2");
 }
 
-#app {
-    height: 100vh;
-    text-align: center;
+* {
+  box-sizing: border-box;
+}
+
+button, input, select, textarea {
+  font: inherit;
+  color: inherit;
+}
+
+select, input, textarea {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  outline: none;
+}
+
+/* Ensure option list is readable even when OS is in light theme */
+select {
+  color-scheme: dark;
+}
+
+select option {
+  background: #0b1220;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+select:focus, input:focus, textarea:focus {
+  border-color: rgba(59, 130, 246, 0.6);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18);
 }

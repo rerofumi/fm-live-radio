@@ -267,6 +267,15 @@ func buildUsedMap(hist domain.History, extra map[string]bool) map[string]bool {
 	return used
 }
 
+func (p *Player) Status() domain.AppStatus {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return domain.AppStatus{
+		TalkPrefetching: p.prefetching,
+		TalkReady:       p.prefetchedTalk != nil,
+	}
+}
+
 func appendHistory(hist domain.History, url string) domain.History {
 	if url == "" {
 		return hist
