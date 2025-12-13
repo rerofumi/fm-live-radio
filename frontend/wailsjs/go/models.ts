@@ -1,5 +1,21 @@
 export namespace domain {
 	
+	export class TTSConfig {
+	    enabled: boolean;
+	    model: string;
+	    voice: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new TTSConfig(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.enabled = source["enabled"];
+	        this.model = source["model"];
+	        this.voice = source["voice"];
+	    }
+	}
 	export class LLMConfig {
 	    enabled: boolean;
 	    baseUrl: string;
@@ -43,8 +59,11 @@ export namespace domain {
 	    selectedGenre: string;
 	    rssUrls: string[];
 	    geminiApiKey: string;
+	    bgmVolume: number;
+	    talkVolume: number;
 	    talk: TalkConfig;
 	    llm: LLMConfig;
+	    tts: TTSConfig;
 	
 	    static createFrom(source: any = {}) {
 	        return new AppConfig(source);
@@ -56,8 +75,11 @@ export namespace domain {
 	        this.selectedGenre = source["selectedGenre"];
 	        this.rssUrls = source["rssUrls"];
 	        this.geminiApiKey = source["geminiApiKey"];
+	        this.bgmVolume = source["bgmVolume"];
+	        this.talkVolume = source["talkVolume"];
 	        this.talk = this.convertValues(source["talk"], TalkConfig);
 	        this.llm = this.convertValues(source["llm"], LLMConfig);
+	        this.tts = this.convertValues(source["tts"], TTSConfig);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -155,6 +177,7 @@ export namespace domain {
 		    return a;
 		}
 	}
+	
 	
 
 }

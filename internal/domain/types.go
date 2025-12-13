@@ -17,13 +17,24 @@ type LLMConfig struct {
 	Model   string `json:"model"`
 }
 
+type TTSConfig struct {
+	Enabled bool   `json:"enabled"`
+	Model   string `json:"model"`
+	Voice   string `json:"voice"`
+}
+
 type AppConfig struct {
-	BGMRootPath   string     `json:"bgmRootPath"`
-	SelectedGenre string     `json:"selectedGenre"`
-	RSSUrls       []string   `json:"rssUrls"`
-	GeminiAPIKey  string     `json:"geminiApiKey"`
-	Talk          TalkConfig `json:"talk"`
-	LLM           LLMConfig  `json:"llm"`
+	BGMRootPath   string   `json:"bgmRootPath"`
+	SelectedGenre string   `json:"selectedGenre"`
+	RSSUrls       []string `json:"rssUrls"`
+	GeminiAPIKey  string   `json:"geminiApiKey"`
+
+	BGMVolume  float64 `json:"bgmVolume"`
+	TalkVolume float64 `json:"talkVolume"`
+
+	Talk TalkConfig `json:"talk"`
+	LLM  LLMConfig  `json:"llm"`
+	TTS  TTSConfig  `json:"tts"`
 }
 
 type History struct {

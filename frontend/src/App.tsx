@@ -19,6 +19,10 @@ type AppConfig = {
   selectedGenre: string;
   rssUrls: string[];
   geminiApiKey: string;
+
+  bgmVolume: number;
+  talkVolume: number;
+
   talk: {
     enabled: boolean;
     cycleBgmCount: number;
@@ -31,6 +35,11 @@ type AppConfig = {
     baseUrl: string;
     apiKey: string;
     model: string;
+  };
+  tts: {
+    enabled: boolean;
+    model: string;
+    voice: string;
   };
 };
 
@@ -45,7 +54,8 @@ function App() {
   const [isPlaying, setIsPlaying] = useState(false);
   const isPlayingRef = useRef(false);
   const [current, setCurrent] = useState<PlayableItem | null>(null);
-  const [volume, setVolume] = useState(0.8);
+  const [bgmVolume, setBgmVolume] = useState(0.8);
+  const [talkVolume, setTalkVolume] = useState(1.0);
   const [errorText, setErrorText] = useState<string>("");
   const [showSettings, setShowSettings] = useState(false);
 
@@ -57,6 +67,8 @@ function App() {
         const loaded = (await LoadConfig()) as unknown as AppConfig;
         setCfg(loaded);
         setSelectedGenre(loaded.selectedGenre ?? "");
+        setBgmVolume(typeof loaded.bgmVolume === 'number' ? loaded.bgmVolume : 0.8);
+        setTalkVolume(typeof loaded.talkVolume === 'number' ? loaded.talkVolume : 1.0);
       } catch (e: any) {
         setErrorText(`設定読み込みに失敗しました: ${e?.message ?? String(e)}`);
       }
@@ -78,10 +90,20 @@ function App() {
     })();
   }, [cfg?.bgmRootPath]);
 
-  useEffect(() => {
+  function applyVolumeFor(kind: PlayableKind | undefined) {
     if (!audioRef.current) return;
-    audioRef.current.volume = volume;
-  }, [volume]);
+    if (kind === 'talk') {
+      audioRef.current.volume = talkVolume;
+      return;
+    }
+    // default to bgm
+    audioRef.current.volume = bgmVolume;
+  }
+
+  useEffect(() => {
+    applyVolumeFor(current?.kind);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bgmVolume, talkVolume, current?.kind]);
 
   useEffect(() => {
     isPlayingRef.current = isPlaying;
@@ -99,6 +121,8 @@ function App() {
   async function persistConfig(next: AppConfig) {
     setCfg(next);
     setSelectedGenre(next.selectedGenre);
+    setBgmVolume(next.bgmVolume);
+    setTalkVolume(next.talkVolume);
     await SaveConfig(next as any);
   }
 
@@ -145,6 +169,7 @@ function App() {
     }
 
     try {
+      applyVolumeFor(item.kind);
       audioRef.current.src = item.url;
       await audioRef.current.play();
 
@@ -193,6 +218,7 @@ function App() {
       }
       if (audioRef.current && item.url) {
         audioRef.current.pause();
+        applyVolumeFor(item.kind);
         audioRef.current.src = item.url;
         await audioRef.current.play();
       }
@@ -239,14 +265,35 @@ function App() {
           Settings
         </button>
 
-        <label style={{marginLeft: 12}}>Vol</label>
+        <label style={{marginLeft: 12}}>BGM Vol</label>
         <input
           type="range"
           min={0}
           max={1}
           step={0.01}
-          value={volume}
-          onChange={(e) => setVolume(parseFloat(e.target.value))}
+          value={bgmVolume}
+          onChange={(e) => {
+            const v = parseFloat(e.target.value);
+            setBgmVolume(v);
+            if (cfg) {
+              void persistConfig({...cfg, bgmVolume: v});
+            }
+          }}
+        />
+        <label>Talk Vol</label>
+        <input
+          type="range"
+          min={0}
+          max={1}
+          step={0.01}
+          value={talkVolume}
+          onChange={(e) => {
+            const v = parseFloat(e.target.value);
+            setTalkVolume(v);
+            if (cfg) {
+              void persistConfig({...cfg, talkVolume: v});
+            }
+          }}
         />
       </div>
 
@@ -282,6 +329,51 @@ function App() {
               <input
                 value={cfg.geminiApiKey}
                 onChange={(e) => setCfg({...cfg, geminiApiKey: e.target.value})}
+              />
+
+              <label>BGM Volume</label>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.01}
+                value={cfg.bgmVolume}
+                onChange={(e) => setCfg({...cfg, bgmVolume: parseFloat(e.target.value)})}
+              />
+
+              <label>Talk Volume</label>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.01}
+                value={cfg.talkVolume}
+                onChange={(e) => setCfg({...cfg, talkVolume: parseFloat(e.target.value)})}
+              />
+
+              <label>曲数 (BGM→Talk)</label>
+              <input
+                type="number"
+                min={1}
+                max={20}
+                step={1}
+                value={cfg.talk?.cycleBgmCount ?? 3}
+                onChange={(e) => {
+                  const n = parseInt(e.target.value, 10);
+                  setCfg({...cfg, talk: {...cfg.talk, cycleBgmCount: Number.isFinite(n) && n > 0 ? n : 3}});
+                }}
+              />
+
+              <label>TTS Model</label>
+              <input
+                value={cfg.tts?.model ?? ""}
+                onChange={(e) => setCfg({...cfg, tts: {...cfg.tts, model: e.target.value}})}
+              />
+
+              <label>TTS Voice</label>
+              <input
+                value={cfg.tts?.voice ?? ""}
+                onChange={(e) => setCfg({...cfg, tts: {...cfg.tts, voice: e.target.value}})}
               />
 
               <label>RSS URLs (1行1URL)</label>

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -73,19 +72,12 @@ func (s *Service) Generate(ctx context.Context, cfg domain.AppConfig, hist domai
 		return Result{}, hist, err
 	}
 
-	// DEBUG: log what we are sending to TTS (bounded to avoid huge logs).
-	logged := strings.TrimSpace(script)
-	const maxLogRunes = 1200
-	r := []rune(logged)
-	if len(r) > maxLogRunes {
-		logged = string(r[:maxLogRunes]) + " ...[truncated]"
-	}
-	log.Printf("INFO: talk script (article=%q url=%s)\n%s", art.Title, art.Link, logged)
-
 	s.tts.APIKey = cfg.GeminiAPIKey
-	// model/voice are fixed for now; make configurable later if needed.
-	s.tts.Model = "gemini-2.5-flash-preview-tts"
-	s.tts.Voice = "Kore"
+	// model/voice are configurable via cfg.TTS.
+	if cfg.TTS.Enabled {
+		s.tts.Model = cfg.TTS.Model
+		s.tts.Voice = cfg.TTS.Voice
+	}
 
 	wav, err := s.tts.SynthesizeWav(ctx, script)
 	if err != nil {

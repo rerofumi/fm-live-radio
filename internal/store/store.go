@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"fm-live-radio/internal/domain"
@@ -43,6 +44,8 @@ func DefaultConfig() domain.AppConfig {
 		SelectedGenre: "",
 		RSSUrls:       []string{},
 		GeminiAPIKey:  "",
+		BGMVolume:     0.8,
+		TalkVolume:    1.0,
 		Talk: domain.TalkConfig{
 			Enabled:           true,
 			CycleBgmCount:     3,
@@ -55,6 +58,11 @@ func DefaultConfig() domain.AppConfig {
 			BaseURL: "http://localhost:11434/v1",
 			APIKey:  "",
 			Model:   "gpt-4o-mini",
+		},
+		TTS: domain.TTSConfig{
+			Enabled: true,
+			Model:   "gemini-2.5-flash-preview-tts",
+			Voice:   "Kore",
 		},
 	}
 }
@@ -143,6 +151,39 @@ func applyConfigDefaults(cfg domain.AppConfig) domain.AppConfig {
 	if cfg.Talk.SilenceGapMaxMs == 0 {
 		cfg.Talk.SilenceGapMaxMs = def.Talk.SilenceGapMaxMs
 	}
+	// default volumes
+	if cfg.BGMVolume == 0 {
+		cfg.BGMVolume = def.BGMVolume
+	}
+	if cfg.TalkVolume == 0 {
+		cfg.TalkVolume = def.TalkVolume
+	}
+
+	// default TTS
+	if cfg.TTS.Enabled == false {
+		// If field is missing in older configs, Enabled will be false; default to enabled.
+		cfg.TTS.Enabled = def.TTS.Enabled
+	}
+	if strings.TrimSpace(cfg.TTS.Model) == "" {
+		cfg.TTS.Model = def.TTS.Model
+	}
+	if strings.TrimSpace(cfg.TTS.Voice) == "" {
+		cfg.TTS.Voice = def.TTS.Voice
+	}
+	// Clamp volumes to [0..1]
+	if cfg.BGMVolume < 0 {
+		cfg.BGMVolume = 0
+	}
+	if cfg.BGMVolume > 1 {
+		cfg.BGMVolume = 1
+	}
+	if cfg.TalkVolume < 0 {
+		cfg.TalkVolume = 0
+	}
+	if cfg.TalkVolume > 1 {
+		cfg.TalkVolume = 1
+	}
+
 	// Clamp gaps to safe values
 	if cfg.Talk.SilenceGapMinMs < 0 {
 		cfg.Talk.SilenceGapMinMs = def.Talk.SilenceGapMinMs
