@@ -306,7 +306,13 @@ function App() {
     }
 
     try {
-      const item = (await SkipCurrent(req as any)) as unknown as PlayableItem;
+      const skipReq = {
+        selectedGenre,
+        // Send current kind so backend can apply correct skip semantics.
+        currentKind: (current?.kind ?? "bgm") as PlayableKind,
+      };
+
+      const item = (await SkipCurrent(skipReq as any)) as unknown as PlayableItem;
       setCurrent(item);
       if (item.kind === "silence") {
         const ms = Math.max(0, item.durationHintMs ?? 0);

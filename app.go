@@ -167,7 +167,7 @@ func (a *App) GetNextItem(req domain.NextItemRequest) (domain.PlayableItem, erro
 }
 
 // SkipCurrent skips current item and returns the next.
-func (a *App) SkipCurrent(req domain.NextItemRequest) (domain.PlayableItem, error) {
+func (a *App) SkipCurrent(req domain.SkipRequest) (domain.PlayableItem, error) {
 	a.mu.Lock()
 	p := a.player
 	as := a.audioSrv

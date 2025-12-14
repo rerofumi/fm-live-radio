@@ -191,12 +191,44 @@ func (p *Player) pickBGM(audioSrv *audio.Server, talkSvc *talk.Service, cfg doma
 	}, hist, false, nil
 }
 
-func (p *Player) Skip(audioSrv *audio.Server, talkSvc *talk.Service, req domain.NextItemRequest, hist domain.History) (domain.PlayableItem, domain.History, bool, error) {
-	// Skipping consumes current slot.
+func (p *Player) Skip(audioSrv *audio.Server, talkSvc *talk.Service, req domain.SkipRequest, hist domain.History) (domain.PlayableItem, domain.History, bool, error) {
+	// Skip semantics (docs/01_specification.md 5.5):
+	// - If skipping BGM: advance bgmCountSinceLastTalk by 1.
+	// - If talk is ready: keep it (do not discard), and do not generate a new one while ready.
+	// - If talk is currently generating: cancel it.
+	// - If skipping silence: consume the gap (do not keep returning silence).
+	// - If skipping talk: treat as consumed (reset counter).
 	p.mu.Lock()
-	p.clearPrefetchLocked()
+
+	// Cancel in-flight generation if any.
+	if p.cancelPrefetch != nil {
+		p.cancelPrefetch()
+		p.cancelPrefetch = nil
+		p.prefetching = false
+	}
+
+	switch req.CurrentKind {
+	case domain.PlayableKindBGM:
+		p.bgmCountSinceLastTalk++
+		p.pendingSilence = true
+	case domain.PlayableKindTalk:
+		// Skipping talk consumes the talk slot.
+		p.bgmCountSinceLastTalk = 0
+		p.pendingSilence = true
+		// We only prefetch one talk; dropping any ready talk avoids "talk again" immediately.
+		p.prefetchedTalk = nil
+	case domain.PlayableKindSilence:
+		// Consume the silence gap immediately.
+		p.pendingSilence = false
+	default:
+		// Unknown kind: be conservative and just move on.
+		p.pendingSilence = true
+	}
+
+	// NOTE: If talk is already ready, we intentionally keep p.prefetchedTalk.
 	p.mu.Unlock()
-	return p.NextItem(audioSrv, talkSvc, req, hist)
+
+	return p.NextItem(audioSrv, talkSvc, domain.NextItemRequest{SelectedGenre: req.SelectedGenre}, hist)
 }
 
 // PrefetchTalk starts generating next talk in the background if we are close to the talk slot.

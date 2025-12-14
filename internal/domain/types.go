@@ -73,6 +73,11 @@ type NextItemRequest struct {
 	SelectedGenre string `json:"selectedGenre"`
 }
 
+type SkipRequest struct {
+	SelectedGenre string       `json:"selectedGenre"`
+	CurrentKind   PlayableKind `json:"currentKind"`
+}
+
 type AppStatus struct {
 	TalkPrefetching bool `json:"talkPrefetching"`
 	TalkReady       bool `json:"talkReady"`

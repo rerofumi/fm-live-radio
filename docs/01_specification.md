@@ -224,11 +224,31 @@
 
 ### 5.4 先読み（プリフェッチ）
 - BGM再生中に次のTalkを作っておく（Low Latency目的）
+- 先読みの成果物（= Talk音声）は「**再生待ち（ready）**」として保持される
 - トリガ:
   - `bgmCountSinceLastTalk == cycleBgmCount-1`（= 次の次がTalk）になった時点で開始
   - もしくは `bgmCountSinceLastTalk == cycleBgmCount` の直前（BGM3開始時）
+- 抑止:
+  - **Talkがすでに再生待ち（ready）なら、新しいTalkは生成しない**（次のTalkスロットでそれを必ず消費する）
 - キャンセル:
   - ジャンル変更 / 停止 / RSS設定変更 / APIキー変更 → 進行中生成をキャンセル（可能な範囲で）
+
+### 5.5 Skip（スキップ）仕様
+Skip は「現在の再生を中断して次のアイテムへ進む」操作とし、サイクル進行とTalk先読みの扱いを以下で統一する。
+
+- 基本挙動
+  - Skip を押したら、**現在の音源を停止**し、ただちに次アイテムへ遷移する（必要なら「間」も挟む）。
+- カウント（BGM→Talk）
+  - Skip で **BGMを飛ばした場合でも `bgmCountSinceLastTalk` は 1進む**（「その曲は消化した」扱い）。
+  - Skip により `bgmCountSinceLastTalk == cycleBgmCount` に到達した場合、次のTalkスロットでは **Talk再生を開始する**（ready があればそれを消費する）。
+- Talkがすでに再生待ち（ready）の場合
+  - Skip しても **ready を維持する**（破棄しない）。
+  - ready がある間は、スキップ後のBGM再生中に **新しいTalkをレンダリングしない**（= 先読み抑止）。
+- Talk生成中（prefetching）の場合
+  - Skip した時点で、**生成中セッションはキャンセル/破棄**する。
+  - その後の新しいBGM再生中に、条件（5.4のトリガ）に従って **再度Talk生成を行う**（ready がない場合のみ）。
+- Talk再生中のSkip（参考）
+  - TalkをSkipした場合は「Talkを消化した」扱いとし、`bgmCountSinceLastTalk = 0` に戻して次のBGMへ進む。
 
 ---
 
@@ -351,7 +371,11 @@ type PlayableItem = {
 - `GetNextItem(state: { selectedGenre: string }): Promise<PlayableItem>`
   - バックエンドがサイクル状態を保持して「次」を返す
 - `SkipCurrent(): Promise<PlayableItem>`
-  - 現在の生成/プリフェッチを必要に応じてキャンセルし、次を返す
+  - 現在再生中アイテムをSkipし、**サイクル進行（BGM→Talkカウント）も進めた上で** 次を返す
+  - Talk先読みとの関係は 5.5 に従う
+  - 具体:
+    - Talkが ready の場合は **維持**し、次のTalkスロットで消費する（skip後のBGM中に新規生成しない）
+    - Talk生成中の場合は **キャンセル**し、次のBGM中に条件に従って再生成する
 
 #### 先読み
 - `PrefetchTalk(): Promise<void>`

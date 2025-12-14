@@ -192,6 +192,20 @@ export namespace domain {
 		}
 	}
 	
+	export class SkipRequest {
+	    selectedGenre: string;
+	    currentKind: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SkipRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.selectedGenre = source["selectedGenre"];
+	        this.currentKind = source["currentKind"];
+	    }
+	}
 	
 
 }
