@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Local Generation AI Radio Review Board</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 24px; color: #1f2937; background: #f8fafc; }
+    h1, h2 { margin-top: 0; }
+    main { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+    section { border: 1px solid #d1d5db; border-radius: 8px; padding: 16px; background: white; }
+    table { border-collapse: collapse; width: 100%; font-size: 14px; }
+    th, td { border: 1px solid #d1d5db; padding: 8px; text-align: left; vertical-align: top; }
+    th { background: #eef2f7; }
+  </style>
+</head>
+<body>
+  <h1>Local Generation AI Radio Review Board</h1>
+  <main>
+    <section>
+      <h2>Decision Map</h2>
+      <table>
+        <tr><th>Decision</th><th>Options</th><th>Status</th></tr>
+        <tr><td>BGM provider</td><td>files / Stable Audio 3</td><td>Recommend configurable fallback</td></tr>
+        <tr><td>TTS provider</td><td>Gemini / IrodoriTTS v3</td><td>Confirmed v3 with default speaker fallback</td></tr>
+        <tr><td>ORT runtime</td><td>provider-specific / shared</td><td>Recommend shared</td></tr>
+        <tr><td>Worker count</td><td>1 / configurable many</td><td>Recommend 1 for MVP</td></tr>
+      </table>
+    </section>
+    <section>
+      <h2>Impact Map</h2>
+      <table>
+        <tr><th>Area</th><th>Impact</th><th>Owner</th></tr>
+        <tr><td>Backend</td><td>New local inference providers and queue</td><td>Implementation agent</td></tr>
+        <tr><td>Frontend</td><td>Settings and status UI additions</td><td>Implementation agent</td></tr>
+        <tr><td>Dev env</td><td>Go/CGO/ORT requirements</td><td>Reviewer</td></tr>
+        <tr><td>Docs</td><td>Current docs must be created after implementation</td><td>Implementation agent</td></tr>
+      </table>
+    </section>
+    <section>
+      <h2>Risk Board</h2>
+      <table>
+        <tr><th>Risk</th><th>Mitigation</th><th>Residual Risk</th></tr>
+        <tr><td>Generation too slow</td><td>Prefetch, single queue, generate_music cache fallback</td><td>First run may still wait if cache is empty</td></tr>
+        <tr><td>Model setup fragile</td><td>Default model/narrator/generate_music directories and validation errors</td><td>Manual setup remains required</td></tr>
+        <tr><td>ORT lifecycle conflict</td><td>Shared ORT manager</td><td>Provider refactor required</td></tr>
+        <tr><td>Large assets</td><td>Do not commit models, use configured paths</td><td>User setup burden</td></tr>
+      </table>
+    </section>
+    <section>
+      <h2>Review Lanes</h2>
+      <table>
+        <tr><th>Lane</th><th>Focus</th><th>Findings</th></tr>
+        <tr><td>Security</td><td>Secrets, local paths, logs</td><td>Keep API keys hidden; avoid logging full article bodies</td></tr>
+        <tr><td>Frontend</td><td>Settings complexity and status display</td><td>Use provider sections and clear errors</td></tr>
+        <tr><td>Backend</td><td>ORT, queue, provider boundaries</td><td>Shared ORT and small interfaces required</td></tr>
+        <tr><td>Storage</td><td>model, narrator, generate_music</td><td>generate_music cache capped around 20 files; models remain external</td></tr>
+        <tr><td>QA</td><td>Provider matrix and smoke tests</td><td>Test files+gemini, files+irodori, SA3+gemini, SA3+irodori</td></tr>
+      </table>
+    </section>
+    <section>
+      <h2>Traceability</h2>
+      <table>
+        <tr><th>Claim</th><th>Requirement</th><th>Specification</th><th>Test / Review</th></tr>
+        <tr><td>Infinite BGM generation</td><td>FR-2</td><td>Music Generation Service</td><td>SA3 WAV smoke</td></tr>
+        <tr><td>Local Talk audio</td><td>FR-3</td><td>TTS Provider</td><td>Irodori v3 WAV smoke</td></tr>
+        <tr><td>Stable playback</td><td>FR-5</td><td>Generation Queue</td><td>Manual cycle test</td></tr>
+      </table>
+    </section>
+    <section>
+      <h2>Open Questions / Go-No-Go</h2>
+      <table>
+        <tr><th>Question</th><th>Needed Before</th><th>Decision Condition</th></tr>
+        <tr><td>Narrator selection with multiple WAVs?</td><td>TTS integration</td><td>Use first file returned by file listing</td></tr>
+        <tr><td>Cache selection rule?</td><td>Player implementation</td><td>Sort by oldness and choose around n/2</td></tr>
+        <tr><td>Base directory detection?</td><td>Storage implementation</td><td>Exe current directory, project root in development</td></tr>
+      </table>
+    </section>
+  </main>
+</body>
+</html>
