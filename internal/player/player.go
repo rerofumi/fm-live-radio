@@ -10,6 +10,7 @@ import (
 	"fm-live-radio/internal/audio"
 	"fm-live-radio/internal/bgm"
 	"fm-live-radio/internal/domain"
+	"fm-live-radio/internal/musicgen"
 	"fm-live-radio/internal/talk"
 
 	"github.com/google/uuid"
@@ -29,6 +30,11 @@ type Player struct {
 	prefetchedTalk *talk.Result
 	prefetching    bool
 	cancelPrefetch context.CancelFunc
+
+	prefetchedMusic      *musicgen.Result
+	musicPrefetching     bool
+	cancelMusicPrefetch  context.CancelFunc
+	localGenerationError string
 }
 
 func New(cfg domain.AppConfig) *Player {
@@ -46,7 +52,7 @@ func (p *Player) UpdateConfig(cfg domain.AppConfig) {
 	p.clearPrefetchLocked()
 }
 
-func (p *Player) NextItem(audioSrv *audio.Server, talkSvc *talk.Service, req domain.NextItemRequest, hist domain.History) (domain.PlayableItem, domain.History, bool, error) {
+func (p *Player) NextItem(audioSrv *audio.Server, talkSvc *talk.Service, musicSvc *musicgen.Service, req domain.NextItemRequest, hist domain.History) (domain.PlayableItem, domain.History, bool, error) {
 	p.mu.Lock()
 	cfg := p.cfg
 	// We mutate these; keep them protected.
@@ -54,7 +60,7 @@ func (p *Player) NextItem(audioSrv *audio.Server, talkSvc *talk.Service, req dom
 	if genre == "" {
 		genre = cfg.SelectedGenre
 	}
-	if cfg.BGMRootPath == "" || genre == "" {
+	if cfg.BGMSource == domain.BGMSourceFiles && (cfg.BGMRootPath == "" || genre == "") {
 		p.mu.Unlock()
 		return domain.PlayableItem{}, hist, false, ErrNotConfigured
 	}
@@ -110,7 +116,7 @@ func (p *Player) NextItem(audioSrv *audio.Server, talkSvc *talk.Service, req dom
 	p.mu.Unlock()
 
 	if wantTalk && talkSvc != nil {
-		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
 		defer cancel()
 
 		used := buildUsedMap(hist, nil)
@@ -142,13 +148,16 @@ func (p *Player) NextItem(audioSrv *audio.Server, talkSvc *talk.Service, req dom
 		p.bgmCountSinceLastTalk = 0
 		p.pendingSilence = true
 		p.mu.Unlock()
-		return p.pickBGM(audioSrv, talkSvc, cfg, genre, hist)
+		return p.pickBGM(audioSrv, talkSvc, musicSvc, cfg, genre, hist)
 	}
 
-	return p.pickBGM(audioSrv, talkSvc, cfg, genre, hist)
+	return p.pickBGM(audioSrv, talkSvc, musicSvc, cfg, genre, hist)
 }
 
-func (p *Player) pickBGM(audioSrv *audio.Server, talkSvc *talk.Service, cfg domain.AppConfig, genre string, hist domain.History) (domain.PlayableItem, domain.History, bool, error) {
+func (p *Player) pickBGM(audioSrv *audio.Server, talkSvc *talk.Service, musicSvc *musicgen.Service, cfg domain.AppConfig, genre string, hist domain.History) (domain.PlayableItem, domain.History, bool, error) {
+	if cfg.BGMSource == domain.BGMSourceStableAudio3 && musicSvc != nil {
+		return p.pickGeneratedBGM(audioSrv, talkSvc, musicSvc, cfg, genre, hist)
+	}
 	tracks, err := bgm.ListTracks(cfg.BGMRootPath, genre)
 	if err != nil {
 		return domain.PlayableItem{}, hist, false, err
@@ -191,7 +200,69 @@ func (p *Player) pickBGM(audioSrv *audio.Server, talkSvc *talk.Service, cfg doma
 	}, hist, false, nil
 }
 
-func (p *Player) Skip(audioSrv *audio.Server, talkSvc *talk.Service, req domain.SkipRequest, hist domain.History) (domain.PlayableItem, domain.History, bool, error) {
+func (p *Player) pickGeneratedBGM(audioSrv *audio.Server, talkSvc *talk.Service, musicSvc *musicgen.Service, cfg domain.AppConfig, genre string, hist domain.History) (domain.PlayableItem, domain.History, bool, error) {
+	p.mu.Lock()
+	prefetched := p.prefetchedMusic
+	if prefetched != nil {
+		p.prefetchedMusic = nil
+	}
+	p.mu.Unlock()
+
+	var res musicgen.Result
+	var err error
+	if prefetched != nil {
+		res = *prefetched
+	} else {
+		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+		defer cancel()
+		res, err = musicSvc.Generate(ctx, cfg, genre)
+		if err != nil {
+			if fallback, fbErr := musicSvc.Fallback(cfg); fbErr == nil {
+				res = fallback
+			} else {
+				p.setLocalGenerationError(err)
+				return domain.PlayableItem{}, hist, false, err
+			}
+		}
+	}
+
+	p.mu.Lock()
+	p.bgmCountSinceLastTalk++
+	p.pendingSilence = true
+	p.localGenerationError = ""
+	count := p.bgmCountSinceLastTalk
+	p.mu.Unlock()
+
+	cycle := cfg.Talk.CycleBgmCount
+	if cycle <= 0 {
+		cycle = 3
+	}
+	if talkSvc != nil && cfg.Talk.Enabled && count >= cycle-1 {
+		p.PrefetchTalk(talkSvc, cfg, hist)
+	}
+	p.PrefetchMusic(musicSvc, cfg, genre)
+
+	url, err := audioSrv.RegisterFile(res.AudioPath, 10*time.Minute)
+	if err != nil {
+		return domain.PlayableItem{}, hist, false, err
+	}
+	return domain.PlayableItem{
+		ID:    uuid.NewString(),
+		Kind:  domain.PlayableKindBGM,
+		URL:   url,
+		Title: res.Title,
+		Source: domain.PlayableSource{
+			Genre:    genre,
+			FilePath: res.AudioPath,
+			Provider: string(domain.BGMSourceStableAudio3),
+			Prompt:   res.Prompt,
+			Seed:     res.Seed,
+			ModelDir: cfg.StableAudio3.ModelDir,
+		},
+	}, hist, false, nil
+}
+
+func (p *Player) Skip(audioSrv *audio.Server, talkSvc *talk.Service, musicSvc *musicgen.Service, req domain.SkipRequest, hist domain.History) (domain.PlayableItem, domain.History, bool, error) {
 	// Skip semantics (docs/01_specification.md 5.5):
 	// - If skipping BGM: advance bgmCountSinceLastTalk by 1.
 	// - If talk is ready: keep it (do not discard), and do not generate a new one while ready.
@@ -205,6 +276,11 @@ func (p *Player) Skip(audioSrv *audio.Server, talkSvc *talk.Service, req domain.
 		p.cancelPrefetch()
 		p.cancelPrefetch = nil
 		p.prefetching = false
+	}
+	if p.cancelMusicPrefetch != nil {
+		p.cancelMusicPrefetch()
+		p.cancelMusicPrefetch = nil
+		p.musicPrefetching = false
 	}
 
 	switch req.CurrentKind {
@@ -228,7 +304,7 @@ func (p *Player) Skip(audioSrv *audio.Server, talkSvc *talk.Service, req domain.
 	// NOTE: If talk is already ready, we intentionally keep p.prefetchedTalk.
 	p.mu.Unlock()
 
-	return p.NextItem(audioSrv, talkSvc, domain.NextItemRequest{SelectedGenre: req.SelectedGenre}, hist)
+	return p.NextItem(audioSrv, talkSvc, musicSvc, domain.NextItemRequest{SelectedGenre: req.SelectedGenre}, hist)
 }
 
 // PrefetchTalk starts generating next talk in the background if we are close to the talk slot.
@@ -253,7 +329,7 @@ func (p *Player) PrefetchTalk(talkSvc *talk.Service, cfg domain.AppConfig, hist 
 		return
 	}
 	p.prefetching = true
-	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 240*time.Second)
 	p.cancelPrefetch = cancel
 	p.mu.Unlock()
 
@@ -284,6 +360,13 @@ func (p *Player) clearPrefetchLocked() {
 	}
 	p.prefetchedTalk = nil
 	p.prefetching = false
+	if p.cancelMusicPrefetch != nil {
+		p.cancelMusicPrefetch()
+		p.cancelMusicPrefetch = nil
+	}
+	p.prefetchedMusic = nil
+	p.musicPrefetching = false
+	p.localGenerationError = ""
 }
 
 func buildUsedMap(hist domain.History, extra map[string]bool) map[string]bool {
@@ -303,9 +386,55 @@ func (p *Player) Status() domain.AppStatus {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return domain.AppStatus{
-		TalkPrefetching: p.prefetching,
-		TalkReady:       p.prefetchedTalk != nil,
+		TalkPrefetching:      p.prefetching,
+		TalkReady:            p.prefetchedTalk != nil,
+		MusicGenerating:      p.musicPrefetching,
+		MusicReady:           p.prefetchedMusic != nil,
+		LocalGenerationError: p.localGenerationError,
 	}
+}
+
+func (p *Player) PrefetchMusic(musicSvc *musicgen.Service, cfg domain.AppConfig, genre string) {
+	if musicSvc == nil || cfg.BGMSource != domain.BGMSourceStableAudio3 {
+		return
+	}
+	p.mu.Lock()
+	if p.prefetchedMusic != nil || p.musicPrefetching {
+		p.mu.Unlock()
+		return
+	}
+	p.musicPrefetching = true
+	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
+	p.cancelMusicPrefetch = cancel
+	p.mu.Unlock()
+
+	go func() {
+		defer func() {
+			p.mu.Lock()
+			p.musicPrefetching = false
+			p.cancelMusicPrefetch = nil
+			p.mu.Unlock()
+		}()
+		res, err := musicSvc.Generate(ctx, cfg, genre)
+		if err != nil {
+			p.setLocalGenerationError(err)
+			return
+		}
+		p.mu.Lock()
+		p.prefetchedMusic = &res
+		p.localGenerationError = ""
+		p.mu.Unlock()
+	}()
+}
+
+func (p *Player) setLocalGenerationError(err error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if err == nil {
+		p.localGenerationError = ""
+		return
+	}
+	p.localGenerationError = err.Error()
 }
 
 func appendHistory(hist domain.History, url string) domain.History {

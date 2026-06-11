@@ -11,6 +11,8 @@ import (
 	"fm-live-radio/internal/audio"
 	"fm-live-radio/internal/bgm"
 	"fm-live-radio/internal/domain"
+	"fm-live-radio/internal/generation"
+	"fm-live-radio/internal/musicgen"
 	"fm-live-radio/internal/player"
 	"fm-live-radio/internal/store"
 	"fm-live-radio/internal/talk"
@@ -27,6 +29,7 @@ type App struct {
 	history  domain.History
 	audioSrv *audio.Server
 	talkSvc  *talk.Service
+	musicSvc *musicgen.Service
 	player   *player.Player
 }
 
@@ -68,6 +71,7 @@ func (a *App) startup(ctx context.Context) {
 	_ = cleanupTempAudio(tmpDir)
 
 	talkSvc := talk.New(tmpDir)
+	musicSvc := musicgen.New()
 
 	a.mu.Lock()
 	a.store = s
@@ -75,6 +79,7 @@ func (a *App) startup(ctx context.Context) {
 	a.history = h
 	a.audioSrv = as
 	a.talkSvc = talkSvc
+	a.musicSvc = musicSvc
 	a.player = player.New(cfg)
 	a.mu.Unlock()
 }
@@ -88,6 +93,7 @@ func (a *App) shutdown(ctx context.Context) {
 	if as != nil {
 		_ = as.Close(ctx)
 	}
+	_ = generation.Shutdown()
 }
 
 func cleanupTempAudio(dir string) error {
@@ -144,6 +150,7 @@ func (a *App) GetNextItem(req domain.NextItemRequest) (domain.PlayableItem, erro
 	p := a.player
 	as := a.audioSrv
 	ts := a.talkSvc
+	ms := a.musicSvc
 	h := a.history
 	s := a.store
 	a.mu.Unlock()
@@ -151,7 +158,7 @@ func (a *App) GetNextItem(req domain.NextItemRequest) (domain.PlayableItem, erro
 		return domain.PlayableItem{}, player.ErrNotConfigured
 	}
 
-	item, newHist, histUpdated, err := p.NextItem(as, ts, req, h)
+	item, newHist, histUpdated, err := p.NextItem(as, ts, ms, req, h)
 	if err != nil {
 		return domain.PlayableItem{}, err
 	}
@@ -172,6 +179,7 @@ func (a *App) SkipCurrent(req domain.SkipRequest) (domain.PlayableItem, error) {
 	p := a.player
 	as := a.audioSrv
 	ts := a.talkSvc
+	ms := a.musicSvc
 	h := a.history
 	s := a.store
 	a.mu.Unlock()
@@ -179,7 +187,7 @@ func (a *App) SkipCurrent(req domain.SkipRequest) (domain.PlayableItem, error) {
 		return domain.PlayableItem{}, player.ErrNotConfigured
 	}
 
-	item, newHist, histUpdated, err := p.Skip(as, ts, req, h)
+	item, newHist, histUpdated, err := p.Skip(as, ts, ms, req, h)
 	if err != nil {
 		return domain.PlayableItem{}, err
 	}
@@ -210,11 +218,13 @@ func (a *App) PrefetchTalk() {
 	a.mu.Lock()
 	p := a.player
 	ts := a.talkSvc
+	ms := a.musicSvc
 	cfg := a.cfg
 	h := a.history
 	a.mu.Unlock()
 	if p != nil {
 		p.PrefetchTalk(ts, cfg, h)
+		p.PrefetchMusic(ms, cfg, cfg.SelectedGenre)
 	}
 	// small delay to keep binding non-blocking even after implementation
 	time.Sleep(0)

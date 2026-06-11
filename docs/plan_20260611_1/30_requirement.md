@@ -30,7 +30,12 @@
 ### FR-3: IrodoriTTS v3 Talk 音声生成
 
 - RSS 選択と LLM 原稿生成は現行 `talk.Service` の流れを維持する。
+- OpenAI 互換 LLM の台本生成は、thinking 対応モデルが推論トークンを消費しても本文を返せるよう、出力上限を十分に確保する。
+- LLM が空白のみの台本を返した場合、TTS に渡さず Talk 生成失敗として扱う。
 - Gemini TTS の代替として IrodoriTTS v3 pipeline を呼び出し、WAV を生成する。
+- Gemini TTS は長文一括生成の品質が高いため、台本全体を一括で TTS に渡す現行挙動を維持する。
+- IrodoriTTS v3 provider は長い台本を短いセンテンスに分割し、センテンスごとに音声生成してから 1 つの WAV に結合する。
+- IrodoriTTS v3 provider で個別センテンス生成に失敗した場合、MVP ではそのセンテンス位置に 3 秒の無音を挿入して Talk 全体の生成を継続する。
 - IrodoriTTS v3 モデルディレクトリ、speaker mode 用の参照 WAV、steps、seconds、duration scale を設定保存できる。
 - 参照 WAV は基準ディレクトリ配下の `narrator` から選ぶ。
 - `narrator` に複数 WAV がある場合は、ファイル一覧取得時の 1 番目を使う。
@@ -116,3 +121,6 @@
 - AC-12: `narrator` に声質 WAV がない場合でも IrodoriTTS v3 のデフォルト話者で Talk が生成される。
 - AC-13: `narrator` に複数 WAV がある場合、ファイル一覧取得時の 1 番目が参照 WAV として使われる。
 - AC-14: `generate_music` フォールバックでは、古い順の `n/2` 番目付近が選ばれ、最古ファイル再生中の削除競合を避ける。
+- AC-15: `gemma4:12b` のような thinking 対応 OpenAI 互換モデルで、LLM 台本生成の `max_tokens` 不足により空台本が TTS に渡らない。
+- AC-16: `ttsSource=irodori` では長いニュース台本がセンテンス単位に分割生成され、成功 WAV と失敗箇所の 3 秒無音が結合された 1 つの Talk WAV として再生される。
+- AC-17: `ttsSource=gemini` ではセンテンス分割せず、従来どおり台本全体を一括 TTS 生成する。

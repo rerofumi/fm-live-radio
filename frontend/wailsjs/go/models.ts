@@ -1,5 +1,81 @@
 export namespace domain {
 	
+	export class IrodoriConfig {
+	    enabled: boolean;
+	    modelDir: string;
+	    narratorDir: string;
+	    refWav: string;
+	    seconds: number;
+	    numSteps: number;
+	    seedMode: string;
+	    fixedSeed: number;
+	    cfgText: number;
+	    cfgCaption: number;
+	    cfgSpeaker: number;
+	    durationScale: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new IrodoriConfig(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.enabled = source["enabled"];
+	        this.modelDir = source["modelDir"];
+	        this.narratorDir = source["narratorDir"];
+	        this.refWav = source["refWav"];
+	        this.seconds = source["seconds"];
+	        this.numSteps = source["numSteps"];
+	        this.seedMode = source["seedMode"];
+	        this.fixedSeed = source["fixedSeed"];
+	        this.cfgText = source["cfgText"];
+	        this.cfgCaption = source["cfgCaption"];
+	        this.cfgSpeaker = source["cfgSpeaker"];
+	        this.durationScale = source["durationScale"];
+	    }
+	}
+	export class StableAudio3Config {
+	    enabled: boolean;
+	    modelDir: string;
+	    outputDir: string;
+	    promptBase: string;
+	    seconds: number;
+	    steps: number;
+	    seedMode: string;
+	    fixedSeed: number;
+	    cacheLimit: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new StableAudio3Config(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.enabled = source["enabled"];
+	        this.modelDir = source["modelDir"];
+	        this.outputDir = source["outputDir"];
+	        this.promptBase = source["promptBase"];
+	        this.seconds = source["seconds"];
+	        this.steps = source["steps"];
+	        this.seedMode = source["seedMode"];
+	        this.fixedSeed = source["fixedSeed"];
+	        this.cacheLimit = source["cacheLimit"];
+	    }
+	}
+	export class LocalInferenceConfig {
+	    ortLibraryPath: string;
+	    maxWorkers: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new LocalInferenceConfig(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.ortLibraryPath = source["ortLibraryPath"];
+	        this.maxWorkers = source["maxWorkers"];
+	    }
+	}
 	export class TTSConfig {
 	    enabled: boolean;
 	    model: string;
@@ -59,11 +135,16 @@ export namespace domain {
 	    selectedGenre: string;
 	    rssUrls: string[];
 	    geminiApiKey: string;
+	    bgmSource: string;
+	    ttsSource: string;
 	    bgmVolume: number;
 	    talkVolume: number;
 	    talk: TalkConfig;
 	    llm: LLMConfig;
 	    tts: TTSConfig;
+	    localInference: LocalInferenceConfig;
+	    stableAudio3: StableAudio3Config;
+	    irodori: IrodoriConfig;
 	
 	    static createFrom(source: any = {}) {
 	        return new AppConfig(source);
@@ -75,11 +156,16 @@ export namespace domain {
 	        this.selectedGenre = source["selectedGenre"];
 	        this.rssUrls = source["rssUrls"];
 	        this.geminiApiKey = source["geminiApiKey"];
+	        this.bgmSource = source["bgmSource"];
+	        this.ttsSource = source["ttsSource"];
 	        this.bgmVolume = source["bgmVolume"];
 	        this.talkVolume = source["talkVolume"];
 	        this.talk = this.convertValues(source["talk"], TalkConfig);
 	        this.llm = this.convertValues(source["llm"], LLMConfig);
 	        this.tts = this.convertValues(source["tts"], TTSConfig);
+	        this.localInference = this.convertValues(source["localInference"], LocalInferenceConfig);
+	        this.stableAudio3 = this.convertValues(source["stableAudio3"], StableAudio3Config);
+	        this.irodori = this.convertValues(source["irodori"], IrodoriConfig);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -103,6 +189,9 @@ export namespace domain {
 	export class AppStatus {
 	    talkPrefetching: boolean;
 	    talkReady: boolean;
+	    musicGenerating: boolean;
+	    musicReady: boolean;
+	    localGenerationError?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new AppStatus(source);
@@ -112,8 +201,13 @@ export namespace domain {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.talkPrefetching = source["talkPrefetching"];
 	        this.talkReady = source["talkReady"];
+	        this.musicGenerating = source["musicGenerating"];
+	        this.musicReady = source["musicReady"];
+	        this.localGenerationError = source["localGenerationError"];
 	    }
 	}
+	
+	
 	
 	export class NextItemRequest {
 	    selectedGenre: string;
@@ -132,6 +226,10 @@ export namespace domain {
 	    filePath?: string;
 	    rssUrl?: string;
 	    articleUrl?: string;
+	    provider?: string;
+	    prompt?: string;
+	    seed?: number;
+	    modelDir?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new PlayableSource(source);
@@ -143,6 +241,10 @@ export namespace domain {
 	        this.filePath = source["filePath"];
 	        this.rssUrl = source["rssUrl"];
 	        this.articleUrl = source["articleUrl"];
+	        this.provider = source["provider"];
+	        this.prompt = source["prompt"];
+	        this.seed = source["seed"];
+	        this.modelDir = source["modelDir"];
 	    }
 	}
 	export class PlayableItem {
@@ -206,6 +308,7 @@ export namespace domain {
 	        this.currentKind = source["currentKind"];
 	    }
 	}
+	
 	
 
 }

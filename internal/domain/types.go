@@ -2,6 +2,20 @@ package domain
 
 // NOTE: These structs are exported so Wails can generate TS bindings.
 
+type BGMSource string
+
+const (
+	BGMSourceFiles        BGMSource = "files"
+	BGMSourceStableAudio3 BGMSource = "stable_audio_3"
+)
+
+type TTSSource string
+
+const (
+	TTSSourceGemini  TTSSource = "gemini"
+	TTSSourceIrodori TTSSource = "irodori"
+)
+
 type TalkConfig struct {
 	Enabled           bool `json:"enabled"`
 	CycleBgmCount     int  `json:"cycleBgmCount"`
@@ -23,18 +37,55 @@ type TTSConfig struct {
 	Voice   string `json:"voice"`
 }
 
+type LocalInferenceConfig struct {
+	ORTLibraryPath string `json:"ortLibraryPath"`
+	MaxWorkers     int    `json:"maxWorkers"`
+}
+
+type StableAudio3Config struct {
+	Enabled    bool    `json:"enabled"`
+	ModelDir   string  `json:"modelDir"`
+	OutputDir  string  `json:"outputDir"`
+	PromptBase string  `json:"promptBase"`
+	Seconds    float64 `json:"seconds"`
+	Steps      int     `json:"steps"`
+	SeedMode   string  `json:"seedMode"`
+	FixedSeed  uint32  `json:"fixedSeed"`
+	CacheLimit int     `json:"cacheLimit"`
+}
+
+type IrodoriConfig struct {
+	Enabled       bool    `json:"enabled"`
+	ModelDir      string  `json:"modelDir"`
+	NarratorDir   string  `json:"narratorDir"`
+	RefWAV        string  `json:"refWav"`
+	Seconds       float64 `json:"seconds"`
+	NumSteps      int     `json:"numSteps"`
+	SeedMode      string  `json:"seedMode"`
+	FixedSeed     uint32  `json:"fixedSeed"`
+	CfgText       float64 `json:"cfgText"`
+	CfgCaption    float64 `json:"cfgCaption"`
+	CfgSpeaker    float64 `json:"cfgSpeaker"`
+	DurationScale float64 `json:"durationScale"`
+}
+
 type AppConfig struct {
-	BGMRootPath   string   `json:"bgmRootPath"`
-	SelectedGenre string   `json:"selectedGenre"`
-	RSSUrls       []string `json:"rssUrls"`
-	GeminiAPIKey  string   `json:"geminiApiKey"`
+	BGMRootPath   string    `json:"bgmRootPath"`
+	SelectedGenre string    `json:"selectedGenre"`
+	RSSUrls       []string  `json:"rssUrls"`
+	GeminiAPIKey  string    `json:"geminiApiKey"`
+	BGMSource     BGMSource `json:"bgmSource"`
+	TTSSource     TTSSource `json:"ttsSource"`
 
 	BGMVolume  float64 `json:"bgmVolume"`
 	TalkVolume float64 `json:"talkVolume"`
 
-	Talk TalkConfig `json:"talk"`
-	LLM  LLMConfig  `json:"llm"`
-	TTS  TTSConfig  `json:"tts"`
+	Talk           TalkConfig           `json:"talk"`
+	LLM            LLMConfig            `json:"llm"`
+	TTS            TTSConfig            `json:"tts"`
+	LocalInference LocalInferenceConfig `json:"localInference"`
+	StableAudio3   StableAudio3Config   `json:"stableAudio3"`
+	Irodori        IrodoriConfig        `json:"irodori"`
 }
 
 type History struct {
@@ -55,6 +106,10 @@ type PlayableSource struct {
 	FilePath   string `json:"filePath,omitempty"`
 	RssURL     string `json:"rssUrl,omitempty"`
 	ArticleURL string `json:"articleUrl,omitempty"`
+	Provider   string `json:"provider,omitempty"`
+	Prompt     string `json:"prompt,omitempty"`
+	Seed       uint32 `json:"seed,omitempty"`
+	ModelDir   string `json:"modelDir,omitempty"`
 }
 
 type PlayableItem struct {
@@ -79,6 +134,9 @@ type SkipRequest struct {
 }
 
 type AppStatus struct {
-	TalkPrefetching bool `json:"talkPrefetching"`
-	TalkReady       bool `json:"talkReady"`
+	TalkPrefetching      bool   `json:"talkPrefetching"`
+	TalkReady            bool   `json:"talkReady"`
+	MusicGenerating      bool   `json:"musicGenerating"`
+	MusicReady           bool   `json:"musicReady"`
+	LocalGenerationError string `json:"localGenerationError,omitempty"`
 }

@@ -11,10 +11,15 @@
 - モデル、声質 WAV、生成音楽の配置は `<base>/model`、`<base>/narrator`、`<base>/generate_music` で確定。`<base>` は exe カレントディレクトリまたは開発時プロジェクトルート。
 - `narrator` に複数 WAV がある場合は、ファイル一覧取得時の 1 番目を使う。
 - `generate_music` フォールバックは、古い順の `n/2` 番目付近を選ぶ。最古ファイルは削除対象になりやすいため避ける。
+- 2026-06-11 の追加調査で、ニュース音声が約 1 秒になる原因は RSS 本文欠落ではなく、OpenAI 互換 LLM 呼び出しの `max_tokens: 400` が `gemma4:12b` の thinking に消費され、`choices[0].message.content` が空かつ `finish_reason=length` になることと判明した。`max_tokens: 2000` または未指定では本文が返り、Ollama 上の `gemma4:12b` は model context length 262144、現在ロード中 context 32768 と確認済み。
+- 2026-06-12 の追加判断として、IrodoriTTS は 30 秒級の長文一括生成に耐えにくいため、Irodori provider 内でセンテンス分割生成と WAV 結合を行う。Gemini TTS は一括生成の方が品質が良いため分割しない。Irodori の個別センテンス失敗は MVP では 3 秒無音で埋める。
 
 ## Fixed Items
 
-- None. This is a pre-implementation plan.
+- Shared ORT initializer was added under `internal/generation`.
+- Stable Audio 3 and IrodoriTTS research packages were copied into the repository and wired behind local services.
+- Current docs were added as `docs/requirement.md` and `docs/specification.md`.
+- RSS feeds used in the app can provide only short summaries, so `internal/rss` now falls back to article-page extraction for the configured Impress Watch feeds.
 
 ## Deferred Items
 
@@ -54,6 +59,6 @@
 
 ## Documentation Feedback
 
-- After implementation, create current `docs/requirement.md` and `docs/specification.md` that describe the implemented local-generation behavior.
-- Move reusable ONNX Runtime and model layout notes into `docs/cheatsheet/` as implementation facts are confirmed in this repository.
+- Keep current docs updated if local generation options or defaults change again.
+- Move additional smoke-test findings into `docs/cheatsheet/` after model-backed runtime verification.
 - Keep rejected options and unresolved risks in this plan directory.

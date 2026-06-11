@@ -5,9 +5,11 @@ import (
 	"errors"
 	"math/rand/v2"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
+	"github.com/PuerkitoBio/goquery"
 	"github.com/mmcdole/gofeed"
 )
 
@@ -28,6 +30,8 @@ type Picker struct {
 	maxTry  int
 	maxItem int
 }
+
+const minUsefulContentRunes = 120
 
 func NewPicker() *Picker {
 	return &Picker{
@@ -99,6 +103,11 @@ func (p *Picker) pickFromOne(ctx context.Context, feedURL string, used map[strin
 		if content == "" {
 			content = strings.TrimSpace(it.Description)
 		}
+		if len([]rune(content)) < minUsefulContentRunes {
+			if pageContent, err := p.fetchArticleContent(ctx, link); err == nil && len([]rune(pageContent)) >= minUsefulContentRunes {
+				content = pageContent
+			}
+		}
 		return Article{
 			FeedTitle: feed.Title,
 			FeedURL:   feedURL,
@@ -108,4 +117,85 @@ func (p *Picker) pickFromOne(ctx context.Context, feedURL string, used map[strin
 		}, true, nil
 	}
 	return Article{}, false, nil
+}
+
+func (p *Picker) fetchArticleContent(ctx context.Context, articleURL string) (string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, articleURL, nil)
+	if err != nil {
+		return "", err
+	}
+	resp, err := p.client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	doc, err := goquery.NewDocumentFromReader(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	candidates := p.articleSelectors(articleURL)
+	for _, candidate := range candidates {
+		text := collectStructuredText(doc, candidate)
+		if len([]rune(text)) >= minUsefulContentRunes {
+			return text, nil
+		}
+	}
+
+	best := ""
+	for _, candidate := range candidates {
+		text := collectStructuredText(doc, candidate)
+		if len([]rune(text)) > len([]rune(best)) {
+			best = text
+		}
+	}
+	return best, nil
+}
+
+func (p *Picker) articleSelectors(articleURL string) []string {
+	u, err := url.Parse(articleURL)
+	if err == nil {
+		host := strings.ToLower(u.Hostname())
+		switch {
+		case strings.HasSuffix(host, "pc.watch.impress.co.jp"), strings.HasSuffix(host, "forest.watch.impress.co.jp"):
+			return []string{
+				"#main .main-contents .contents-section > p",
+				"#main .main-contents .contents-section > ul > li",
+				"#main .main-contents .contents-section > ol > li",
+				"article[role='main'] .main-contents .contents-section > p",
+				"article[role='main'] .main-contents .contents-section > ul > li",
+				"article[role='main'] .main-contents .contents-section > ol > li",
+			}
+		}
+	}
+
+	return []string{
+		"article p",
+		"article li",
+		"main p",
+		"main li",
+		".article-body p",
+		".article__body p",
+		".entry-content p",
+		".post-content p",
+		"#article p",
+	}
+}
+
+func collectStructuredText(doc *goquery.Document, selector string) string {
+	parts := make([]string, 0, 16)
+	doc.Find(selector).Each(func(_ int, s *goquery.Selection) {
+		text := normalizeText(s.Text())
+		if len([]rune(text)) < 10 {
+			return
+		}
+		parts = append(parts, text)
+	})
+	return strings.Join(parts, "\n")
+}
+
+func normalizeText(s string) string {
+	lines := strings.Fields(strings.ReplaceAll(strings.ReplaceAll(s, "\r", " "), "\n", " "))
+	return strings.TrimSpace(strings.Join(lines, " "))
 }

@@ -1,15 +1,17 @@
 module fm-live-radio
 
-go 1.23
+go 1.26
 
 require (
+	github.com/PuerkitoBio/goquery v1.8.0
 	github.com/google/uuid v1.6.0
 	github.com/mmcdole/gofeed v1.3.0
-	github.com/wailsapp/wails/v2 v2.11.0
+	github.com/wailsapp/wails/v2 v2.12.0
+	github.com/yalue/onnxruntime_go v1.31.0
 )
 
 require (
-	github.com/PuerkitoBio/goquery v1.8.0 // indirect
+	git.sr.ht/~jackmordaunt/go-toast/v2 v2.0.3 // indirect
 	github.com/andybalholm/cascadia v1.3.1 // indirect
 	github.com/bep/debounce v1.2.1 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect

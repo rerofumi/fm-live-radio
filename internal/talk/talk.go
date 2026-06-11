@@ -11,12 +11,14 @@ import (
 
 	"fm-live-radio/internal/domain"
 	"fm-live-radio/internal/llm"
+	"fm-live-radio/internal/localtts"
 	"fm-live-radio/internal/rss"
 	"fm-live-radio/internal/tts"
 )
 
 var ErrDisabled = errors.New("talk disabled")
 var ErrNotReady = errors.New("talk not ready")
+var ErrEmptyScript = errors.New("talk script is empty")
 
 type Result struct {
 	AudioPath    string
@@ -28,7 +30,8 @@ type Result struct {
 type Service struct {
 	picker *rss.Picker
 	llm    *llm.OpenAICompat
-	tts    *tts.GeminiClient
+	gemini *tts.GeminiClient
+	local  *localtts.Service
 
 	tempDir string
 }
@@ -37,7 +40,8 @@ func New(tempDir string) *Service {
 	return &Service{
 		picker:  rss.NewPicker(),
 		llm:     &llm.OpenAICompat{},
-		tts:     &tts.GeminiClient{},
+		gemini:  &tts.GeminiClient{},
+		local:   localtts.New(),
 		tempDir: tempDir,
 	}
 }
@@ -66,15 +70,12 @@ func (s *Service) Generate(ctx context.Context, cfg domain.AppConfig, used map[s
 	if err != nil {
 		return Result{}, err
 	}
-
-	s.tts.APIKey = cfg.GeminiAPIKey
-	// model/voice are configurable via cfg.TTS.
-	if cfg.TTS.Enabled {
-		s.tts.Model = cfg.TTS.Model
-		s.tts.Voice = cfg.TTS.Voice
+	if strings.TrimSpace(script) == "" {
+		return Result{}, ErrEmptyScript
 	}
 
-	wav, err := s.tts.SynthesizeWav(ctx, script)
+	provider := s.providerForConfig(cfg)
+	wav, err := provider.SynthesizeWav(ctx, script)
 	if err != nil {
 		return Result{}, err
 	}
@@ -90,6 +91,27 @@ func (s *Service) Generate(ctx context.Context, cfg domain.AppConfig, used map[s
 		ArticleTitle: art.Title,
 		FeedURL:      art.FeedURL,
 	}, nil
+}
+
+func (s *Service) providerForConfig(cfg domain.AppConfig) tts.Provider {
+	if cfg.TTSSource == domain.TTSSourceIrodori {
+		return irodoriProvider{svc: s.local, cfg: cfg}
+	}
+	s.gemini.APIKey = cfg.GeminiAPIKey
+	if cfg.TTS.Enabled {
+		s.gemini.Model = cfg.TTS.Model
+		s.gemini.Voice = cfg.TTS.Voice
+	}
+	return s.gemini
+}
+
+type irodoriProvider struct {
+	svc *localtts.Service
+	cfg domain.AppConfig
+}
+
+func (p irodoriProvider) SynthesizeWav(ctx context.Context, text string) ([]byte, error) {
+	return p.svc.SynthesizeWav(ctx, p.cfg, text)
 }
 
 func buildUserPrompt(a rss.Article) string {

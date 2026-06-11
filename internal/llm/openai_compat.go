@@ -46,7 +46,8 @@ func (c *OpenAICompat) Complete(ctx context.Context, systemPrompt, userPrompt st
 
 	hc := c.Client
 	if hc == nil {
-		hc = &http.Client{Timeout: 30 * time.Second}
+		// Local models may need cold-start time before the first token arrives.
+		hc = &http.Client{Timeout: 120 * time.Second}
 	}
 
 	body, err := json.Marshal(chatReq{
@@ -56,7 +57,7 @@ func (c *OpenAICompat) Complete(ctx context.Context, systemPrompt, userPrompt st
 			{Role: "user", Content: userPrompt},
 		},
 		Temperature: 0.6,
-		MaxTokens:   400,
+		MaxTokens:   8192,
 	})
 	if err != nil {
 		return "", err

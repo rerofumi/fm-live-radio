@@ -191,10 +191,16 @@ Defaults:
 - Run local smoke tests after copying or refactoring providers into `fm-live-radio`.
 - Record any divergence from research code back into this cheatsheet.
 
-## Open Questions
+## Integration Status In fm-live-radio
 
-- Whether to refactor research repos into importable packages or copy/adapt implementation into `fm-live-radio`.
-- Exact runtime detection rule for packaged exe directory versus project root.
+- 2026-06-11: `fm-live-radio` copied and adapted the required Stable Audio 3 and IrodoriTTS Go packages into `internal/musicgen/stableaudio` and `internal/localtts/irodori`.
+- 2026-06-11: ORT initialization was unified under `internal/generation`.
+- 2026-06-11: current default asset base in `fm-live-radio` is the process current working directory at startup.
+- 2026-06-11: `pc.watch.impress.co.jp` and `forest.watch.impress.co.jp` RSS items can have empty `content` and only a very short `description`, so article narration cannot rely on feed payload alone.
+- 2026-06-11: for those Impress Watch feeds, `internal/rss` now falls back to article-page extraction from `#main .main-contents .contents-section > p` and list items under the same section.
+- 2026-06-11: smoke test succeeded in `fm-live-radio` with local assets under `model/`, `narrator/`, and `third_party/onnxruntime/.../onnxruntime.dll`.
+- 2026-06-11: Stable Audio 3 smoke test generated a 44.1 kHz stereo WAV in about 8.9 seconds with non-zero peak/RMS (`peak=1.0000`, `rms=0.0608`) using a short 6-second sample.
+- 2026-06-11: IrodoriTTS v3 smoke test generated a 48 kHz mono WAV in about 11.8 seconds with non-zero peak/RMS (`peak=0.9998`, `rms=0.1519`) using `narrator/test_synthesis.wav` as the reference WAV.
 
 ## Update Conditions
 

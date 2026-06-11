@@ -196,6 +196,35 @@ type Provider interface {
 - Irodori provider chooses `RefWAV` from config when set; otherwise it scans `irodori.narratorDir` for WAV files and uses the first file returned by the file listing. If no WAV exists, it runs v3 default speaker mode without reference WAV.
 - `talk.Service.Generate` selects provider from config and stays responsible for RSS, LLM, and final temp file writing.
 
+Irodori provider sentence synthesis:
+
+- Keep Gemini as a single-shot provider because it performs better with full-script context.
+- Implement sentence splitting inside the Irodori provider path, not in `talk.Service.Generate`, so Gemini remains unchanged.
+- Split text on Japanese and ASCII sentence terminators such as `。`, `！`, `？`, `!`, `?`, and line breaks.
+- Trim whitespace and drop empty segments.
+- Synthesize each sentence independently through the existing Irodori pipeline.
+- Decode generated WAV payloads as PCM16 WAV and concatenate PCM data into a single 48 kHz mono WAV.
+- Insert a short silence gap between successful sentences. MVP gap: 300 ms.
+- If an individual sentence fails to synthesize, insert 3 seconds of 48 kHz mono PCM16 silence in that sentence slot and continue with the remaining sentences.
+- If all sentences are empty before synthesis, return an error.
+- If every sentence fails and the final output would be only fallback silence, still return the combined WAV for MVP so playback continues and the failure is audible as a gap rather than aborting the radio cycle.
+- Add small WAV helper functions under `internal/audiofmt` or `internal/localtts` for:
+  - parsing PCM16 WAV payload metadata and data
+  - validating matching sample rate, channel count, and bit depth
+  - generating PCM16 silence
+  - re-encoding combined PCM via existing `audiofmt.EncodeWavPCM16`
+
+### LLM Talk Script Generation
+
+- `internal/llm.OpenAICompat` keeps using `/chat/completions`.
+- Set the chat completion output limit to `max_tokens: 8192`.
+  - `ollama show gemma4:12b` reports model context length `262144`.
+  - `ollama ps` reports the currently loaded runtime context as `32768`.
+  - The app's news prompt is small enough that `8192` is safe within the current runtime context while preventing thinking-capable models from consuming the previous `400` token budget before emitting `message.content`.
+- `talk.Service.Generate` must validate the LLM script before invoking TTS.
+  - If `strings.TrimSpace(script) == ""`, return an error and do not call `provider.SynthesizeWav`.
+  - This avoids generating a short 1-second Irodori WAV from an empty prompt.
+
 ### Player Integration
 
 Current `player.pickBGM` becomes provider-aware.
@@ -281,6 +310,8 @@ Player additions:
   - CGO / DLL load failure
   - generation timeout
   - generated WAV missing or silent
+- Empty LLM talk script must be treated as a Talk generation error before TTS synthesis.
+- Irodori per-sentence synthesis failure is handled locally in the Irodori provider by inserting 3 seconds of silence; it does not fail the whole Talk generation unless setup fails before any sentence processing can begin.
 - Provider errors must not expose API keys.
 - Talk generation failure consumes the Talk slot as current behavior does.
 - Music generation failure falls back to file BGM if enabled; otherwise stops playback with actionable UI error.

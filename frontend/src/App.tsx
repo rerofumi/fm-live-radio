@@ -12,6 +12,11 @@ type PlayableItem = {
   title: string;
   topicTitle?: string;
   durationHintMs?: number;
+  source?: {
+    provider?: string;
+    prompt?: string;
+    modelDir?: string;
+  };
 };
 
 type AppConfig = {
@@ -19,6 +24,8 @@ type AppConfig = {
   selectedGenre: string;
   rssUrls: string[];
   geminiApiKey: string;
+  bgmSource: "files" | "stable_audio_3";
+  ttsSource: "gemini" | "irodori";
 
   bgmVolume: number;
   talkVolume: number;
@@ -41,6 +48,33 @@ type AppConfig = {
     model: string;
     voice: string;
   };
+  localInference: {
+    ortLibraryPath: string;
+    maxWorkers: number;
+  };
+  stableAudio3: {
+    modelDir: string;
+    outputDir: string;
+    promptBase: string;
+    seconds: number;
+    steps: number;
+    seedMode: string;
+    fixedSeed: number;
+    cacheLimit: number;
+  };
+  irodori: {
+    modelDir: string;
+    narratorDir: string;
+    refWav: string;
+    seconds: number;
+    numSteps: number;
+    seedMode: string;
+    fixedSeed: number;
+    cfgText: number;
+    cfgCaption: number;
+    cfgSpeaker: number;
+    durationScale: number;
+  };
 };
 
 function App() {
@@ -61,6 +95,8 @@ function App() {
 
   const [talkPrefetching, setTalkPrefetching] = useState(false);
   const [talkReady, setTalkReady] = useState(false);
+  const [musicGenerating, setMusicGenerating] = useState(false);
+  const [musicReady, setMusicReady] = useState(false);
 
   const [elapsedSec, setElapsedSec] = useState(0);
   const [durationSec, setDurationSec] = useState<number | null>(null);
@@ -125,6 +161,12 @@ function App() {
         setTalkPrefetching(!!st?.talkPrefetching);
         // @ts-ignore
         setTalkReady(!!st?.talkReady);
+        // @ts-ignore
+        setMusicGenerating(!!st?.musicGenerating);
+        // @ts-ignore
+        setMusicReady(!!st?.musicReady);
+        // @ts-ignore
+        if (st?.localGenerationError) setErrorText(String(st.localGenerationError));
       } catch {
         // ignore
       }
@@ -339,7 +381,11 @@ function App() {
     : '未再生';
 
   const nowSub = current
-    ? (current.kind === 'talk' ? 'ニューストーク' : current.kind === 'bgm' ? 'BGM' : '間（無音）')
+    ? (current.kind === 'talk'
+      ? `ニューストーク${current.source?.provider ? ` · ${current.source.provider}` : ''}`
+      : current.kind === 'bgm'
+        ? `BGM${current.source?.provider ? ` · ${current.source.provider}` : ''}`
+        : '間（無音）')
     : '再生を開始してください';
 
   return (
@@ -357,6 +403,10 @@ function App() {
             <div className="pilot" title={talkReady ? 'Talk ready' : (talkPrefetching ? 'Generating talk...' : 'Talk idle')}>
               <span className={`lamp ${talkReady ? 'lampReady' : (talkPrefetching ? 'lampActive' : '')}`} />
               <span className="pilotText">Talk</span>
+            </div>
+            <div className="pilot" title={musicReady ? 'Music ready' : (musicGenerating ? 'Generating music...' : 'Music idle')}>
+              <span className={`lamp ${musicReady ? 'lampReady' : (musicGenerating ? 'lampActive' : '')}`} />
+              <span className="pilotText">Music</span>
             </div>
             <button className="btn" onClick={() => setShowSettings(true)}>
               Settings
@@ -504,6 +554,24 @@ function App() {
                   placeholder="E:/Music/BGM"
                 />
 
+                <label>BGM Source</label>
+                <select
+                  value={cfg.bgmSource}
+                  onChange={(e) => setCfg({...cfg, bgmSource: e.target.value as AppConfig["bgmSource"]})}
+                >
+                  <option value="files">Files</option>
+                  <option value="stable_audio_3">Stable Audio 3</option>
+                </select>
+
+                <label>TTS Source</label>
+                <select
+                  value={cfg.ttsSource}
+                  onChange={(e) => setCfg({...cfg, ttsSource: e.target.value as AppConfig["ttsSource"]})}
+                >
+                  <option value="gemini">Gemini</option>
+                  <option value="irodori">IrodoriTTS</option>
+                </select>
+
                 <label>Selected Genre</label>
                 <input
                   value={cfg.selectedGenre}
@@ -563,6 +631,83 @@ function App() {
                   value={cfg.tts?.voice ?? ""}
                   onChange={(e) => setCfg({...cfg, tts: {...cfg.tts, voice: e.target.value}})}
                   placeholder="Kore"
+                />
+
+                <label>ORT DLL Path</label>
+                <input
+                  value={cfg.localInference?.ortLibraryPath ?? ""}
+                  onChange={(e) => setCfg({...cfg, localInference: {...cfg.localInference, ortLibraryPath: e.target.value}})}
+                  placeholder="C:/path/to/onnxruntime.dll"
+                />
+
+                <label>Stable Audio 3 Model Dir</label>
+                <input
+                  value={cfg.stableAudio3?.modelDir ?? ""}
+                  onChange={(e) => setCfg({...cfg, stableAudio3: {...cfg.stableAudio3, modelDir: e.target.value}})}
+                  placeholder="E:/.../model/sa3-sm-music"
+                />
+
+                <label>Stable Audio 3 Output Dir</label>
+                <input
+                  value={cfg.stableAudio3?.outputDir ?? ""}
+                  onChange={(e) => setCfg({...cfg, stableAudio3: {...cfg.stableAudio3, outputDir: e.target.value}})}
+                  placeholder="E:/.../generate_music"
+                />
+
+                <label>Stable Audio 3 Prompt Base</label>
+                <input
+                  value={cfg.stableAudio3?.promptBase ?? ""}
+                  onChange={(e) => setCfg({...cfg, stableAudio3: {...cfg.stableAudio3, promptBase: e.target.value}})}
+                />
+
+                <label>Stable Audio 3 Seconds</label>
+                <input
+                  type="number"
+                  value={cfg.stableAudio3?.seconds ?? 30}
+                  onChange={(e) => setCfg({...cfg, stableAudio3: {...cfg.stableAudio3, seconds: parseFloat(e.target.value)}})}
+                />
+
+                <label>Stable Audio 3 Steps</label>
+                <input
+                  type="number"
+                  value={cfg.stableAudio3?.steps ?? 8}
+                  onChange={(e) => setCfg({...cfg, stableAudio3: {...cfg.stableAudio3, steps: parseInt(e.target.value, 10)}})}
+                />
+
+                <label>Irodori Model Dir</label>
+                <input
+                  value={cfg.irodori?.modelDir ?? ""}
+                  onChange={(e) => setCfg({...cfg, irodori: {...cfg.irodori, modelDir: e.target.value}})}
+                  placeholder="E:/.../model/irodori-v3"
+                />
+
+                <label>Irodori Narrator Dir</label>
+                <input
+                  value={cfg.irodori?.narratorDir ?? ""}
+                  onChange={(e) => setCfg({...cfg, irodori: {...cfg.irodori, narratorDir: e.target.value}})}
+                  placeholder="E:/.../narrator"
+                />
+
+                <label>Irodori Ref WAV</label>
+                <input
+                  value={cfg.irodori?.refWav ?? ""}
+                  onChange={(e) => setCfg({...cfg, irodori: {...cfg.irodori, refWav: e.target.value}})}
+                  placeholder="(optional)"
+                />
+
+                <label>Irodori Steps</label>
+                <input
+                  type="number"
+                  value={cfg.irodori?.numSteps ?? 40}
+                  onChange={(e) => setCfg({...cfg, irodori: {...cfg.irodori, numSteps: parseInt(e.target.value, 10)}})}
+                />
+
+                <label>Irodori Duration Scale</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={cfg.irodori?.durationScale ?? 1}
+                  onChange={(e) => setCfg({...cfg, irodori: {...cfg.irodori, durationScale: parseFloat(e.target.value)}})}
                 />
 
                 <label>RSS URLs (1行1URL)</label>
