@@ -10,6 +10,7 @@ import (
 	"fm-live-radio/internal/audio"
 	"fm-live-radio/internal/bgm"
 	"fm-live-radio/internal/domain"
+	"fm-live-radio/internal/generation"
 	"fm-live-radio/internal/musicgen"
 	"fm-live-radio/internal/talk"
 
@@ -94,6 +95,7 @@ func (p *Player) NextItem(audioSrv *audio.Server, talkSvc *talk.Service, musicSv
 		p.prefetchedTalk = nil
 		p.bgmCountSinceLastTalk = 0
 		p.pendingSilence = true
+		p.localGenerationError = generationWarning()
 		p.mu.Unlock()
 
 		url, err := audioSrv.RegisterFile(prefetched.AudioPath, 10*time.Minute)
@@ -127,6 +129,7 @@ func (p *Player) NextItem(audioSrv *audio.Server, talkSvc *talk.Service, musicSv
 				p.mu.Lock()
 				p.bgmCountSinceLastTalk = 0
 				p.pendingSilence = true
+				p.localGenerationError = generationWarning()
 				p.mu.Unlock()
 				newHist := appendHistory(hist, res.ArticleURL)
 				return domain.PlayableItem{
@@ -229,7 +232,7 @@ func (p *Player) pickGeneratedBGM(audioSrv *audio.Server, talkSvc *talk.Service,
 	p.mu.Lock()
 	p.bgmCountSinceLastTalk++
 	p.pendingSilence = true
-	p.localGenerationError = ""
+	p.localGenerationError = generationWarning()
 	count := p.bgmCountSinceLastTalk
 	p.mu.Unlock()
 
@@ -349,6 +352,7 @@ func (p *Player) PrefetchTalk(talkSvc *talk.Service, cfg domain.AppConfig, hist 
 		}
 		p.mu.Lock()
 		p.prefetchedTalk = &res
+		p.localGenerationError = generationWarning()
 		p.mu.Unlock()
 	}()
 }
@@ -422,7 +426,7 @@ func (p *Player) PrefetchMusic(musicSvc *musicgen.Service, cfg domain.AppConfig,
 		}
 		p.mu.Lock()
 		p.prefetchedMusic = &res
-		p.localGenerationError = ""
+		p.localGenerationError = generationWarning()
 		p.mu.Unlock()
 	}()
 }
@@ -435,6 +439,10 @@ func (p *Player) setLocalGenerationError(err error) {
 		return
 	}
 	p.localGenerationError = err.Error()
+}
+
+func generationWarning() string {
+	return generation.LastWarning()
 }
 
 func appendHistory(hist domain.History, url string) domain.History {

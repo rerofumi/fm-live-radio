@@ -2,120 +2,265 @@
 
 ![Screenshot_mapmode](docs/screenshot_fm-live-radio_2025-12-13-a.png)
 
-AIローカルラジオ（Wails v2 + Go + React）。ローカルBGMをシャッフル再生しつつ、RSS記事を元にLLMで原稿を生成してGemini TTSでニューストークを挟みます。
+Wails + Go + React で作った AI ローカルラジオです。  
+BGM を流しながら RSS から記事を選び、LLM で原稿を作り、TTS でニューストークを差し込みます。
 
-AIコーディングサポートで作成しました。
+現在は以下の構成で動きます。
 
-## Features
-- BGMジャンル（フォルダ）選択 + シャッフル再生（直前曲の連続回避）
-- `BGM × N → Talk × 1` のサイクル再生（Nは設定可能）
-- RSS複数登録 + ランダム選定 + 既出記事の重複排除（History）
-- LLM（OpenAI互換）でトーク原稿生成
-- Gemini TTS（REST）で音声生成（WAVにラップして保存）
-- BGM / Talk で別ボリューム
-- Talk生成のパイロットランプ（生成中/準備完了）
+- BGM:
+  - 手元の音楽ファイル
+  - Stable Audio 3 によるローカル生成
+- Talk:
+  - Gemini TTS
+  - IrodoriTTS v3 によるローカル生成
+- Local inference:
+  - ONNX Runtime CPU
+  - ONNX Runtime CUDA (`auto` / `cuda` / `cpu`)
 
-## Tech Stack
-- Desktop: Wails v2 (Go)
-- Frontend: React + Vite + TypeScript
-- Backend: Go
-- LLM: OpenAI互換API（例: Ollama/OpenRouter など）
-- TTS: Gemini API（REST）
+## この README の対象
 
-## 用意する物
+この README は、初回セットアップから `mise run dev` で起動し、ローカル生成と GPU 利用まで確認するための手順をまとめたものです。
 
-- gemini API key (TTS生成のため)
-- OpenAI 互換 API および利用キー (ニュース文章生成のため、ollama/LMstudio でも可)
-- 再生する楽曲が入ったローカルファイルフォルダ
-- ニュースのネタ元となる RSS url
+## 必要なもの
 
-## IMPORTANT: Tooling is managed by `mise`
-このプロジェクトは **`mise` でツールチェーン（Go / Node / Wails）を管理**しています。
+### 必須
 
-`go` / `npm` / `wails` は **直接実行しない**でください。必ず以下のいずれかで実行します。
-- `mise x -- <command>`
-- `mise run <task>`（`mise.toml` に定義されたタスク）
+- Windows x64
+- `mise`
+- `uv`
+- OpenAI 互換 API
+  - 例: Ollama, LM Studio, OpenRouter
+- RSS URL
 
-（開発者向けルールの詳細は `AGENTS.md` を参照）
+### Talk を Gemini で使う場合
 
-まだ `mise` をインストールしていない場合は、以下の手順でインストールしてください。
+- Gemini API Key
 
-**Windows (winget):**
+### ローカル生成を使う場合
+
+以下のファイルやディレクトリが必要です。
+
+- Stable Audio 3 モデル:
+  - `model/sa3-sm-music/`
+- IrodoriTTS v3 モデル:
+  - `model/irodori-v3/`
+- 話者参照 WAV:
+  - `narrator/*.wav`
+  - 参照 WAV がなくても IrodoriTTS v3 のデフォルト話者では動きます
+
+このリポジトリでは、開発用の既定パスは次です。
+
+- Stable Audio 3:
+  - `model/sa3-sm-music`
+- IrodoriTTS:
+  - `model/irodori-v3`
+- narrator:
+  - `narrator`
+
+## 最初にやること
+
+### 1. `mise` を入れる
+
 ```powershell
 winget install jdx.mise
 ```
 
-## Getting Started
-### 1) Install tools
-```pwsh
+### 2. ツールチェーンを入れる
+
+```powershell
 mise install
 ```
 
-### 2) Install Wails CLI (once)
-`mise.toml` の task を使います。
-```pwsh
+### 3. Wails CLI を入れる
+
+```powershell
 mise run setup
 ```
 
-### 3) Generate Wails bindings
-Go側のAPIを変更した場合は、フロントのバインディングを更新します。
-```pwsh
-mise x -- wails generate module
+### 4. GPU を使うなら ONNX Runtime と依存 DLL を入れる
+
+このプロジェクトでは GPU 用ファイルを Git に含めていません。  
+初回だけ次を実行してください。
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\download_gpu_ort.ps1
 ```
 
-### 4) Run (dev)
-```pwsh
+このスクリプトは次を行います。
+
+- ONNX Runtime CUDA 13 asset
+  - `onnxruntime-win-x64-gpu_cuda13-1.26.0.zip`
+  をダウンロード
+- `third_party/onnxruntime-gpu/onnxruntime-win-x64-gpu-1.26.0/` に展開
+- `uv` を使って `nvidia-cudnn-cu13==9.23.1.3` を `third_party/` 配下へ展開
+- `cuDNN`, `cuBLAS`, `nvrtc` の必要 DLL を ORT の `lib` にコピー
+
+展開後に使われる `onnxruntime.dll` は次です。
+
+- `third_party/onnxruntime-gpu/onnxruntime-win-x64-gpu-1.26.0/lib/onnxruntime.dll`
+
+### 5. スモークテストを回す
+
+CPU / GPU の切り分けに使います。
+
+```powershell
+mise x -- go run ./cmd/local_smoketest
+```
+
+GPU 強制確認:
+
+```powershell
+$env:FM_RADIO_ORT_EP='cuda'
+mise x -- go run ./cmd/local_smoketest
+```
+
+終わったら環境変数を消してください。
+
+```powershell
+Remove-Item Env:FM_RADIO_ORT_EP
+```
+
+## 起動
+
+### 開発起動
+
+```powershell
 mise run dev
 ```
 
-### 5) Build
-```pwsh
+### 本番ビルド
+
+```powershell
 mise run build
 ```
 
-## Configuration
-初回起動後、Settings から以下を設定してください。
-- BGM Root Path（BGMフォルダ）
-- RSS URLs（1行1URL）
-- LLM Base URL / Model（OpenAI互換, ollama や LMstudio も想定）
-- Gemini API Key
-- TTS Model / Voice ("gemini-2.5-flash-preview-tts", "Aoede" あたりを設定)
-- Talk cycle（BGM→Talkの曲数）
-- BGM / Talk volume
+## 初回起動後に Settings で設定する項目
 
-### Config/History location
-設定と履歴、生成音声の一時ファイルは **OSのユーザー設定ディレクトリ**配下に保存されます（Goの `os.UserConfigDir()`）。
+最低限、以下を埋めれば動きます。
 
-- `fm-live-radio/config.json` … 設定
-- `fm-live-radio/history.json` … 既出記事URL履歴（上限500）
-- `fm-live-radio/temp_audio/` … 生成Talk音声
+- `RSS URLs`
+- `LLM Base URL`
+- `LLM Model`
+- `TTS Source`
+- `BGM Source`
 
-`temp_audio/` は **起動時に全削除**されます。
+用途別の推奨設定:
 
-## Development notes
-- 依存更新やビルド確認も `mise` 経由で実行してください。
-- Go側のAPI追加/変更後は `mise x -- wails generate module` が必要です。
+### ローカル Talk + ローカル BGM
 
-## Contributing
-Issue / PR welcome.
-- バグ報告: 再現手順、ログ（APIキーなど秘匿情報は除く）、OS/バージョン情報を添えてください。
-- PR: 可能なら `mise run dev` が通る状態でお願いします。
+- `TTS Source` = `irodori`
+- `BGM Source` = `stable_audio_3`
+- `Local Inference Provider` = `auto`
+- `ORT DLL Path` = 空でよい
+  - 既定探索で GPU ORT を拾います
+
+### ローカル Talk + ファイル BGM
+
+- `TTS Source` = `irodori`
+- `BGM Source` = `files`
+- `BGM Root Path` = 音楽フォルダ
+
+### Gemini Talk + ローカル BGM
+
+- `TTS Source` = `gemini`
+- `Gemini API Key` を設定
+- `TTS Model` / `TTS Voice` を設定
+
+## GPU 利用の考え方
+
+- `Local Inference Provider` の既定値は `auto`
+- `auto`
+  - CUDA が使えれば GPU
+  - 使えなければ CPU へフォールバック
+- `cuda`
+  - GPU を強制
+  - 失敗時はエラー
+- `cpu`
+  - 常に CPU
+
+起動ログで次が出れば GPU 版 ORT を読めています。
+
+```text
+INFO: using ONNX Runtime shared library: third_party\onnxruntime-gpu\onnxruntime-win-x64-gpu-1.26.0\lib\onnxruntime.dll
+```
+
+このログが出ていて、さらに `Local Inference Provider = cuda` で生成が通るなら GPU 実行です。
+
+## このリポジトリで増えた「初回に必要な関連ファイル」
+
+初回セットアップで意識すべきものをまとめると次です。
+
+### リポジトリ内
+
+- `scripts/download_gpu_ort.ps1`
+- `cmd/local_smoketest/main.go`
+- `model/sa3-sm-music`
+- `model/irodori-v3`
+- `narrator`
+
+### スクリプト実行後に生成されるもの
+
+- `third_party/onnxruntime-gpu/onnxruntime-win-x64-gpu-1.26.0/`
+- `third_party/nvidia-cudnn-cu13/`
+
+これらは Git 管理対象ではなく、初回セットアップで作られるローカル依存物です。
+
+## 設定ファイルの保存先
+
+設定や履歴は `os.UserConfigDir()` 配下に保存されます。  
+この環境では次です。
+
+- `C:\Users\rero2\AppData\Roaming\fm-live-radio\config.json`
+- `C:\Users\rero2\AppData\Roaming\fm-live-radio\history.json`
+- `C:\Users\rero2\AppData\Roaming\fm-live-radio\temp_audio\`
+
+`temp_audio/` は起動時に掃除されます。
+
+## 開発メモ
+
+- `go`, `npm`, `wails` は直接実行しない
+- 必ず `mise x -- ...` か `mise run ...` を使う
+- Go 側 API を変えたら:
+
+```powershell
+mise x -- wails generate module
+```
+
+- フロント単体ビルド確認:
+
+```powershell
+mise x -- npm --prefix frontend run build
+```
+
+- Go 側確認:
+
+```powershell
+mise x -- go test ./...
+```
+
+## トラブル時の最短確認
+
+### CPU fallback になった
+
+1. `scripts\download_gpu_ort.ps1` を再実行
+2. `mise x -- go run ./cmd/local_smoketest`
+3. `Local Inference Provider = cuda` で再確認
+
+### ORT の読み先を固定したい
+
+Settings の `ORT DLL Path` に次を入れます。
+
+`E:\programming\AI_generative\fm-live-radio\third_party\onnxruntime-gpu\onnxruntime-win-x64-gpu-1.26.0\lib\onnxruntime.dll`
+
+### 何を読んでいるか確認したい
+
+起動ログの `INFO: using ONNX Runtime shared library: ...` を見ます。
 
 ## Security
-- APIキー（Gemini/LLM）は `config.json` に保存されます。
-- ログにAPIキーが出ないようにしていますが、Issue貼り付け時は念のため秘匿情報をマスクしてください。
 
-## 更新内容
-
-- Dec.13.2025
-  - first release
-
+- API キーは `config.json` に保存されます
+- ログ共有時は API キーや個人パスを必要に応じてマスクしてください
 
 ## License
+
 MIT
-
-## 作者
-
-- **rerofumi** - [GitHub](https://github.com/rerofumi) - rero2@yuumu.org
-
-

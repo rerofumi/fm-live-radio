@@ -8,9 +8,11 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"fm-live-radio/internal/domain"
+	"fm-live-radio/internal/generation"
 	"fm-live-radio/internal/localtts"
 	"fm-live-radio/internal/musicgen"
 	"fm-live-radio/internal/store"
@@ -32,6 +34,13 @@ func main() {
 	cfg.Irodori.Seconds = -1
 	cfg.Irodori.NumSteps = 12
 	cfg.Irodori.DurationScale = 0.9
+	cfg.LocalInference.ExecutionProvider = resolveEnvOrDefault("FM_RADIO_ORT_EP", cfg.LocalInference.ExecutionProvider)
+	cfg.LocalInference.DeviceID = resolveEnvInt("FM_RADIO_ORT_DEVICE_ID", cfg.LocalInference.DeviceID)
+	cfg.LocalInference.ORTLibraryPath = resolveEnvOrDefault("FM_RADIO_ORT_LIB", cfg.LocalInference.ORTLibraryPath)
+
+	if err := generation.ConfigureExecutionProvider(cfg.LocalInference.ExecutionProvider, cfg.LocalInference.DeviceID); err != nil {
+		fail("configure ort execution provider", err)
+	}
 
 	_ = os.MkdirAll(cfg.StableAudio3.OutputDir, 0o755)
 
@@ -74,6 +83,22 @@ func main() {
 	assertNonSilent("irodori", ttsStats)
 
 	fmt.Println("smoke test passed")
+}
+
+func resolveEnvOrDefault(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
+}
+
+func resolveEnvInt(key string, fallback int) int {
+	if v := os.Getenv(key); v != "" {
+		if parsed, err := strconv.Atoi(v); err == nil {
+			return parsed
+		}
+	}
+	return fallback
 }
 
 func withIrodori(cfg domain.AppConfig) domain.AppConfig {

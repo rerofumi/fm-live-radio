@@ -38,8 +38,10 @@ type TTSConfig struct {
 }
 
 type LocalInferenceConfig struct {
-	ORTLibraryPath string `json:"ortLibraryPath"`
-	MaxWorkers     int    `json:"maxWorkers"`
+	ORTLibraryPath    string `json:"ortLibraryPath"`
+	MaxWorkers        int    `json:"maxWorkers"`
+	ExecutionProvider string `json:"executionProvider"`
+	DeviceID          int    `json:"deviceId"`
 }
 
 type StableAudio3Config struct {

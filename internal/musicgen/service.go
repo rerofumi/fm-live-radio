@@ -31,6 +31,9 @@ func (s *Service) Generate(ctx context.Context, cfg domain.AppConfig, genre stri
 	if strings.TrimSpace(cfg.StableAudio3.ModelDir) == "" || strings.TrimSpace(cfg.StableAudio3.OutputDir) == "" {
 		return Result{}, generation.ErrProviderNotConfigured
 	}
+	if err := generation.ConfigureExecutionProvider(cfg.LocalInference.ExecutionProvider, cfg.LocalInference.DeviceID); err != nil {
+		return Result{}, err
+	}
 	if err := generation.Init(cfg.LocalInference.ORTLibraryPath); err != nil {
 		return Result{}, err
 	}

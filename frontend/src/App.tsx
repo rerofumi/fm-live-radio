@@ -51,6 +51,8 @@ type AppConfig = {
   localInference: {
     ortLibraryPath: string;
     maxWorkers: number;
+    executionProvider: "cpu" | "cuda" | "auto";
+    deviceId: number;
   };
   stableAudio3: {
     modelDir: string;
@@ -638,6 +640,28 @@ function App() {
                   value={cfg.localInference?.ortLibraryPath ?? ""}
                   onChange={(e) => setCfg({...cfg, localInference: {...cfg.localInference, ortLibraryPath: e.target.value}})}
                   placeholder="C:/path/to/onnxruntime.dll"
+                />
+
+                <label>Local Inference Provider</label>
+                <select
+                  value={cfg.localInference?.executionProvider ?? "auto"}
+                  onChange={(e) => setCfg({...cfg, localInference: {...cfg.localInference, executionProvider: e.target.value as AppConfig["localInference"]["executionProvider"]}})}
+                >
+                  <option value="auto">Auto</option>
+                  <option value="cuda">CUDA</option>
+                  <option value="cpu">CPU</option>
+                </select>
+
+                <label>Local Inference Device ID</label>
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={cfg.localInference?.deviceId ?? 0}
+                  onChange={(e) => {
+                    const n = parseInt(e.target.value, 10);
+                    setCfg({...cfg, localInference: {...cfg.localInference, deviceId: Number.isFinite(n) && n >= 0 ? n : 0}});
+                  }}
                 />
 
                 <label>Stable Audio 3 Model Dir</label>

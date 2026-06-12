@@ -39,6 +39,9 @@ func (s *Service) SynthesizeWav(ctx context.Context, cfg domain.AppConfig, text 
 	if strings.TrimSpace(cfg.Irodori.ModelDir) == "" {
 		return nil, generation.ErrProviderNotConfigured
 	}
+	if err := generation.ConfigureExecutionProvider(cfg.LocalInference.ExecutionProvider, cfg.LocalInference.DeviceID); err != nil {
+		return nil, err
+	}
 	if err := generation.Init(cfg.LocalInference.ORTLibraryPath); err != nil {
 		return nil, err
 	}

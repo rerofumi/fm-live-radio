@@ -1,22 +1,126 @@
 # Current Requirements
 
-## Playback Modes
+最終確認日: 2026-06-13
 
-- BGM source supports `files` and `stable_audio_3`.
-- TTS source supports `gemini` and `irodori`.
-- Existing `files + gemini` behavior remains available as a compatibility path.
+この文書は、現在実装されている `fm-live-radio` の要求仕様を示す。`docs/plan_*` の検討内容ではなく、現行コードと一致する要件のみを記載する。
 
-## Local Generation
+## 目的
 
-- Stable Audio 3 generates WAV files into `<base>/generate_music` by default.
-- IrodoriTTS v3 generates Talk WAV files from the existing RSS -> LLM script flow.
-- ORT library path can be supplied by config `localInference.ortLibraryPath` or `FM_RADIO_ORT_LIB`.
-- When Stable Audio 3 generation is late or fails, cached `generate_music` WAV files are used when available.
-- Cache fallback chooses an old-order midpoint item instead of the oldest file.
-- When `narrator` contains multiple WAV files, the first listed file is used as the reference WAV.
-- When `narrator` has no WAV files, IrodoriTTS runs without a reference WAV.
+`fm-live-radio` は、ローカルデスクトップ上で BGM と AI 生成ニューストークを交互に再生する「AI ローカルラジオ」アプリである。ユーザーは音楽ソース、ニュース RSS、LLM、TTS、ローカル推論の設定を行い、連続再生されるラジオ風の体験を得られる必要がある。
 
-## UI
+## 対象環境
 
-- Settings exposes BGM source, TTS source, ORT DLL path, Stable Audio 3 paths/options, and Irodori paths/options.
-- Status exposes Talk prefetch state, Music prefetch state, and local generation error text.
+- Windows x64 を主な対象環境とする。
+- Wails + Go + React によるデスクトップアプリとして動作する。
+- 開発・検証コマンドは `mise` 経由で実行できる必要がある。
+- OpenAI 互換 Chat Completions API を利用できる環境を前提とする。
+- Gemini TTS を使う場合は Gemini API key を必要とする。
+- Stable Audio 3 または IrodoriTTS v3 を使う場合は、対応するローカルモデルと ONNX Runtime が利用可能である必要がある。
+
+## 機能要件
+
+### 再生体験
+
+- アプリは Play / Pause / Skip による基本的な再生操作を提供する。
+- 再生対象は BGM、Talk、無音ギャップを扱える必要がある。
+- BGM と Talk の間には、設定された範囲内の無音ギャップを挿入する。
+- BGM を一定曲数再生した後に Talk を差し込む。
+- BGM 音量と Talk 音量は個別に調整できる必要がある。
+- 現在再生中の種別、タイトル、進捗、再生時間を UI に表示する。
+- Talk と Music の生成・先読み状態を UI に表示する。
+- ローカル生成の警告またはエラーは UI に表示できる必要がある。
+
+### BGM
+
+- BGM source として `files` と `stable_audio_3` を選択できる。
+- `files` では、ユーザー指定の BGM root 配下にあるジャンルディレクトリを一覧化できる。
+- `files` では、選択ジャンル配下の `.mp3`、`.wav`、`.m4a` を再生対象にする。
+- `files` では、直前と同じ曲の即時繰り返しを可能な範囲で避ける。
+- `stable_audio_3` では、Stable Audio 3 モデルを使って BGM WAV を生成する。
+- `stable_audio_3` では、モデルディレクトリ、出力ディレクトリ、prompt base、秒数、steps、seed mode、fixed seed、cache limit を設定できる。
+- Stable Audio 3 の生成に失敗した場合、利用可能な生成済み WAV があれば fallback として使える必要がある。
+- 生成済み BGM cache は設定された上限に基づいて整理される必要がある。
+
+### Talk
+
+- TTS source として `gemini` と `irodori` を選択できる。
+- Talk は RSS 記事選択、LLM 原稿生成、TTS 合成の順で生成される。
+- RSS URL は複数設定できる。
+- 過去に利用した記事 URL は履歴に保存し、再利用を避ける。
+- RSS item の本文が不足する場合、記事ページから本文抽出を試みる。
+- LLM は OpenAI 互換 `/chat/completions` API を利用する。
+- LLM base URL、API key、model を設定できる。
+- Talk 原稿はラジオ DJ 風の短いニュース紹介として生成される。
+- Talk 生成結果は一時 WAV ファイルとして保存され、再生できる必要がある。
+
+### Gemini TTS
+
+- Gemini TTS を利用するには Gemini API key を設定できる必要がある。
+- Gemini TTS model と voice を設定できる必要がある。
+- Gemini TTS の audio response は WAV に変換して再生できる必要がある。
+
+### IrodoriTTS v3
+
+- IrodoriTTS v3 のモデルディレクトリを設定できる必要がある。
+- narrator ディレクトリと任意の参照 WAV path を設定できる必要がある。
+- 参照 WAV path が空の場合、narrator ディレクトリ内の WAV を参照音声として利用できる必要がある。
+- 参照 WAV が見つからない場合でも、参照音声なしで合成を試みる。
+- 長い Talk 原稿は文単位に分割して合成される必要がある。
+- 文単位の合成に失敗した場合、全体を即座に失敗させず、無音で置き換えて合成を継続する。
+- Irodori の steps、seed mode、fixed seed、CFG 値、duration scale を設定できる必要がある。
+
+### ローカル推論
+
+- Stable Audio 3 と IrodoriTTS v3 は共有の ONNX Runtime 初期化機構を使う。
+- ONNX Runtime DLL path は設定値または環境変数から指定できる。
+- execution provider は `auto`、`cuda`、`cpu` を選択できる。
+- `auto` は CUDA が利用できない場合 CPU に fallback する。
+- `cuda` は CUDA を強制し、利用できない場合はエラーにする。
+- device ID を設定できる必要がある。
+- 初期化済みの ORT DLL path または execution provider を変更する場合は、アプリ再起動を必要とする。
+
+### 設定と履歴
+
+- 設定は OS の user config directory 配下に `config.json` として保存される。
+- 記事利用履歴は `history.json` として保存される。
+- 履歴の article URL は最大 500 件に制限される。
+- Talk などの一時音声は user config directory 配下の `temp_audio/` に保存される。
+- 起動時に `temp_audio/` の古いファイルは best-effort で削除される。
+
+## 非機能要件
+
+- ローカル audio server は `127.0.0.1` の動的 port で起動し、外部公開を前提にしない。
+- 再生用 audio URL は token 付きで発行し、一定時間後に無効化される。
+- API key はログに積極的に出力しない。
+- 生成処理は UI 操作を長時間ブロックしないよう、Talk と Music の prefetch を利用する。
+- BGM ファイル再生、Gemini TTS、ローカル生成のいずれかを組み合わせても基本再生フローが維持される。
+
+## 制約
+
+- ローカル生成モデル、GPU 版 ONNX Runtime、CUDA/cuDNN 関連 DLL はリポジトリ管理対象外である。
+- `files` BGM では BGM root と genre が未設定の場合、再生できない。
+- Talk は RSS URL が空の場合、生成できない。
+- Gemini TTS は API key が空の場合、生成できない。
+- IrodoriTTS は必要な model asset が不足している場合、生成できない。
+- RSS 記事本文抽出はサイト構造に依存するため、十分な本文を取得できない場合がある。
+- ORT はプロセス内で一度初期化されるため、実行中の provider 切り替えには対応しない。
+
+## 対象外
+
+- RSS 以外のニュースソース連携。
+- 複数プレイリストや予約番組表の管理。
+- クラウド同期。
+- 設定ファイルの暗号化。
+- ローカル生成モデルの自動取得。ただし GPU 用 ORT 取得補助スクリプトは存在する。
+- 本格的な記事重複判定。現状は article URL 履歴に基づく。
+
+## 受け入れ条件
+
+- `mise x -- go test ./...` が実行可能である。
+- `mise x -- npm --prefix frontend run build` が実行可能である。
+- `mise run build` が実行可能である。
+- Settings から BGM source、TTS source、RSS、LLM、Gemini、Stable Audio 3、Irodori、ORT provider 関連設定を保存できる。
+- `files + gemini` の互換経路で、BGM と Talk を交互に再生できる。
+- `stable_audio_3` を選択した場合、設定済みモデルと ORT があれば BGM を生成して再生できる。
+- `irodori` を選択した場合、設定済みモデルと ORT があれば Talk WAV を生成して再生できる。
+- `auto` provider で CUDA が利用できない場合、CPU fallback の警告が UI status に反映される。

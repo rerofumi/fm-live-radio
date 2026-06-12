@@ -76,7 +76,9 @@ func DefaultConfig() domain.AppConfig {
 			Voice:   "Kore",
 		},
 		LocalInference: domain.LocalInferenceConfig{
-			MaxWorkers: 1,
+			MaxWorkers:        1,
+			ExecutionProvider: "auto",
+			DeviceID:          0,
 		},
 		StableAudio3: domain.StableAudio3Config{
 			Enabled:    true,
@@ -214,6 +216,17 @@ func applyConfigDefaults(cfg domain.AppConfig) domain.AppConfig {
 	}
 	if cfg.LocalInference.MaxWorkers <= 0 {
 		cfg.LocalInference.MaxWorkers = def.LocalInference.MaxWorkers
+	}
+	switch strings.ToLower(strings.TrimSpace(cfg.LocalInference.ExecutionProvider)) {
+	case "":
+		cfg.LocalInference.ExecutionProvider = def.LocalInference.ExecutionProvider
+	case "cpu", "cuda", "auto":
+		cfg.LocalInference.ExecutionProvider = strings.ToLower(strings.TrimSpace(cfg.LocalInference.ExecutionProvider))
+	default:
+		cfg.LocalInference.ExecutionProvider = "cpu"
+	}
+	if cfg.LocalInference.DeviceID < 0 {
+		cfg.LocalInference.DeviceID = 0
 	}
 	if strings.TrimSpace(cfg.StableAudio3.ModelDir) == "" {
 		cfg.StableAudio3.ModelDir = def.StableAudio3.ModelDir

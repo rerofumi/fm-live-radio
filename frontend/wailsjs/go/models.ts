@@ -65,6 +65,8 @@ export namespace domain {
 	export class LocalInferenceConfig {
 	    ortLibraryPath: string;
 	    maxWorkers: number;
+	    executionProvider: string;
+	    deviceId: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new LocalInferenceConfig(source);
@@ -74,6 +76,8 @@ export namespace domain {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.ortLibraryPath = source["ortLibraryPath"];
 	        this.maxWorkers = source["maxWorkers"];
+	        this.executionProvider = source["executionProvider"];
+	        this.deviceId = source["deviceId"];
 	    }
 	}
 	export class TTSConfig {

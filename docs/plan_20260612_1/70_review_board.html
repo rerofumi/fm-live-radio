@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Review Board - CUDA ONNX Runtime</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 24px; color: #1f2937; background: #f8fafc; }
+    main { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+    section { border: 1px solid #d1d5db; border-radius: 8px; padding: 16px; background: #fff; }
+    h1, h2 { margin-top: 0; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #d1d5db; padding: 8px; text-align: left; vertical-align: top; }
+    th { background: #f1f5f9; }
+  </style>
+</head>
+<body>
+  <h1>CUDA ONNX Runtime Review Board</h1>
+  <main>
+    <section>
+      <h2>Decision Map</h2>
+      <table>
+        <tr><th>Decision</th><th>Options</th><th>Status</th></tr>
+        <tr><td>Provider values</td><td>cpu / cuda / auto</td><td>Proposed</td></tr>
+        <tr><td>Default provider</td><td>cpu vs auto</td><td>auto proposed with CPU fallback</td></tr>
+        <tr><td>CUDA failure</td><td>Error vs fallback</td><td>Error for cuda, fallback for auto</td></tr>
+        <tr><td>GPU DLL management</td><td>Commit vs script</td><td>Script proposed</td></tr>
+      </table>
+    </section>
+    <section>
+      <h2>Impact Map</h2>
+      <table>
+        <tr><th>Area</th><th>Impact</th><th>Owner</th></tr>
+        <tr><td>Backend</td><td>SessionOptions and EP state in internal/generation</td><td>Implementation</td></tr>
+        <tr><td>Frontend</td><td>Settings fields for provider and device ID</td><td>Implementation</td></tr>
+        <tr><td>Environment</td><td>GPU ORT, CUDA, cuDNN DLL requirements</td><td>User / Setup docs</td></tr>
+        <tr><td>QA</td><td>CPU, cuda, auto smoke tests</td><td>Implementation</td></tr>
+      </table>
+    </section>
+    <section>
+      <h2>Risk Board</h2>
+      <table>
+        <tr><th>Risk</th><th>Mitigation</th><th>Residual Risk</th></tr>
+        <tr><td>Missing cuDNN DLLs</td><td>Clear error and cheatsheet guidance</td><td>Manual setup remains required</td></tr>
+        <tr><td>ORT already initialized</td><td>Reject config mismatch and require restart</td><td>Runtime switching limited</td></tr>
+        <tr><td>GPU DLL accidentally tracked</td><td>Use existing third_party ignore</td><td>Manual status check needed</td></tr>
+        <tr><td>Stable Audio 3 affected</td><td>Shared smoke tests</td><td>CUDA behavior may differ by model</td></tr>
+      </table>
+    </section>
+    <section>
+      <h2>Review Lanes</h2>
+      <table>
+        <tr><th>Lane</th><th>Focus</th><th>Findings</th></tr>
+        <tr><td>Security</td><td>No secrets or remote auth changes</td><td>Low risk</td></tr>
+        <tr><td>Frontend</td><td>Settings UX and defaults</td><td>Review labels and persistence</td></tr>
+        <tr><td>Backend</td><td>ORT lifecycle and options cleanup</td><td>Highest risk</td></tr>
+        <tr><td>Storage</td><td>Config compatibility</td><td>Defaults required</td></tr>
+        <tr><td>QA</td><td>CPU / cuda / auto matrix</td><td>GPU environment needed</td></tr>
+      </table>
+    </section>
+    <section>
+      <h2>Traceability</h2>
+      <table>
+        <tr><th>Claim</th><th>Requirement</th><th>Specification</th><th>Test / Review</th></tr>
+        <tr><td>Reduce TTS wait</td><td>FR-2</td><td>CUDA SessionOptions</td><td>CUDA smoke</td></tr>
+        <tr><td>Keep CPU path</td><td>FR-1, FR-4</td><td>Default auto with CPU fallback</td><td>CPU smoke</td></tr>
+        <tr><td>Do not hide config errors</td><td>FR-2, FR-3</td><td>cuda error, auto fallback</td><td>Missing CUDA test</td></tr>
+      </table>
+    </section>
+    <section>
+      <h2>Open Questions / Go-No-Go</h2>
+      <table>
+        <tr><th>Question</th><th>Needed Before</th><th>Decision Condition</th></tr>
+        <tr><td>Is GPU ORT available locally?</td><td>CUDA smoke</td><td>Use script or explicit ORT path</td></tr>
+        <tr><td>Is localGenerationError enough for auto warning?</td><td>Implementation review</td><td>Add status field only if needed</td></tr>
+      </table>
+    </section>
+  </main>
+</body>
+</html>
