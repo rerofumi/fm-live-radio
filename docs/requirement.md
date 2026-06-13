@@ -26,6 +26,10 @@
 - 現在再生中の種別、タイトル、進捗、再生時間を UI に表示する。
 - Talk と Music の生成・先読み状態を UI に表示する。
 - ローカル生成の警告またはエラーは UI に表示できる必要がある。
+- メイン UI はラジオ筐体風の外観を持ち、Settings は右上から常時開ける必要がある。
+- BGM と Talk の音量は個別のツマミ風コントロールとして表示し、変更時に即時保存できる必要がある。
+- Stable Audio 3 のジャンルはチューニングメーター風 UI から固定 4 値を選択でき、現在再生中または先読み中の BGM を中断せず次回生成へ反映できる必要がある。
+- 画面幅が狭い場合、操作パネルとチューニングメーターは縦積みになり、横スクロールを前提にしない。
 - 再生中の BGM / Talk について、ファイル先頭からの音量包絡（loudness envelope）を視覚化に反映する。Web Audio や FFT は使わない。
 - 包絡が取得できない場合・無音 gap・一時停止時は、既存の合成アニメーションへ静かに fallback する。
 - 現在の音量 slider の値を視覚化の振幅にも乗算する。
@@ -114,6 +118,7 @@
 - `mise x -- npm --prefix frontend run build` が実行可能である。
 - `mise run build` が実行可能である。
 - Settings から RSS、LLM、Stable Audio 3、Irodori、ORT provider 関連設定を保存できる。
+- Wails 起動時の標準ウィンドウは横長のラジオ UI を表示し、最小ウィンドウサイズにより極端な縮小を抑止できる。
 - `stable_audio_3` 設定済みモデルと ORT があれば BGM を生成して再生できる。
 - `irodori` 設定済みモデルと ORT があれば Talk WAV を生成して再生できる。
 - `auto` provider で CUDA が利用できない場合、CPU fallback の警告が UI status に反映される。

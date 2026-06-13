@@ -1,4 +1,4 @@
-import {useEffect, useMemo, useRef, useState} from 'react';
+import {CSSProperties, useEffect, useMemo, useRef, useState} from 'react';
 import './App.css';
 import Visualizer, {LoudnessEnvelope} from './Visualizer';
 
@@ -31,12 +31,176 @@ const SA3_GENRES: ReadonlyArray<string> = [
 
 const SA3_DEFAULT_GENRE = "chill lo-fi";
 
+const SA3_GENRE_NEEDLE_ANGLES: Record<string, number> = {
+  "chill lo-fi": -38,
+  "smooth jazz": 38,
+  "minimal electronica": -18,
+  "ambient music": 18,
+};
+
 function normalizeSa3Genre(g: string | undefined | null): string {
   const v = (g ?? "").trim().toLowerCase();
   for (const allowed of SA3_GENRES) {
     if (v === allowed.toLowerCase()) return allowed;
   }
   return SA3_DEFAULT_GENRE;
+}
+
+type LampTone = "idle" | "active" | "ready" | "error";
+
+function StatusLamp({label, tone, caption}: {label: string; tone: LampTone; caption: string}) {
+  return (
+    <div className={`statusLamp statusLamp-${tone}`} title={`${label}: ${caption}`}>
+      <span className="lampBulb" />
+      <span className="lampText">
+        <span>{label}</span>
+        <small>{caption}</small>
+      </span>
+    </div>
+  );
+}
+
+function KnobControl({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+}) {
+  const pct = Math.round(value * 100);
+  const angle = -135 + value * 270;
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+
+    const startY = e.clientY;
+    const startValue = value;
+    const dragScale = 150;
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const deltaY = startY - moveEvent.clientY;
+      const nextValue = Math.max(0, Math.min(1, startValue + deltaY / dragScale));
+      onChange(nextValue);
+    };
+
+    const handleMouseUp = () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 0) return;
+    const startY = e.touches[0].clientY;
+    const startValue = value;
+    const dragScale = 150;
+
+    const handleTouchMove = (moveEvent: TouchEvent) => {
+      if (moveEvent.touches.length === 0) return;
+      const deltaY = startY - moveEvent.touches[0].clientY;
+      const nextValue = Math.max(0, Math.min(1, startValue + deltaY / dragScale));
+      onChange(nextValue);
+    };
+
+    const handleTouchEnd = () => {
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleTouchEnd);
+    };
+
+    window.addEventListener('touchmove', handleTouchMove, { passive: false });
+    window.addEventListener('touchend', handleTouchEnd);
+  };
+
+  return (
+    <div className="knobControl">
+      <span className="knobLabel">{label}</span>
+      <div
+        className="knobDial"
+        style={{"--knob-angle": `${angle}deg`} as CSSProperties}
+        onMouseDown={handleMouseDown}
+        onTouchStart={handleTouchStart}
+        role="slider"
+        aria-label={label}
+        aria-valuenow={pct}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowUp' || e.key === 'ArrowRight') {
+            e.preventDefault();
+            onChange(Math.min(1, value + 0.05));
+          } else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') {
+            e.preventDefault();
+            onChange(Math.max(0, value - 0.05));
+          }
+        }}
+      >
+        <span className="knobTicks" />
+        <span className="knobFace">
+          <span className="knobPointerWrapper">
+            <span className="knobPointer" />
+          </span>
+        </span>
+      </div>
+      <input
+        type="range"
+        min={0}
+        max={1}
+        step={0.01}
+        value={value}
+        onChange={(e) => onChange(parseFloat(e.target.value))}
+        aria-label={`${label} volume`}
+      />
+      <span className="knobValue">{pct}%</span>
+    </div>
+  );
+}
+
+function GenreTuner({
+  value,
+  disabled,
+  onSelect,
+}: {
+  value: string;
+  disabled: boolean;
+  onSelect: (genre: string) => void;
+}) {
+  const activeGenre = normalizeSa3Genre(value);
+  const needleAngle = SA3_GENRE_NEEDLE_ANGLES[activeGenre] ?? SA3_GENRE_NEEDLE_ANGLES[SA3_DEFAULT_GENRE];
+
+  return (
+    <div className="genreTuner" style={{"--needle-angle": `${needleAngle}deg`} as CSSProperties}>
+      <div className="tunerDial" aria-hidden="true">
+        <div className="tunerScale">
+          <span />
+          <span />
+          <span />
+          <span />
+          <span />
+        </div>
+        <div className="tunerNeedle" />
+      </div>
+      <div className="genreButtons" aria-label="SA3 Genre">
+        {SA3_GENRES.map((genre) => (
+          <button
+            key={genre}
+            type="button"
+            className={`genreButton ${activeGenre === genre ? "isSelected" : ""}`}
+            onClick={() => onSelect(genre)}
+            disabled={disabled}
+          >
+            {genre}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 type AppConfig = {
@@ -471,164 +635,140 @@ function App() {
   })();
 
   const currentLevel = current?.kind === 'talk' ? talkVolume : bgmVolume;
+  const selectedGenre = normalizeSa3Genre(cfg?.stableAudio3?.genre);
+  const errorLampTone: LampTone = errorText ? "error" : "idle";
+
+  function updateBgmVolume(value: number) {
+    setBgmVolume(value);
+    if (cfg) {
+      void persistConfig({...cfg, bgmVolume: value});
+    }
+  }
+
+  function updateTalkVolume(value: number) {
+    setTalkVolume(value);
+    if (cfg) {
+      void persistConfig({...cfg, talkVolume: value});
+    }
+  }
+
+  function updateGenre(genre: string) {
+    const next = normalizeSa3Genre(genre);
+    if (!cfg) return;
+    const nextCfg: AppConfig = {
+      ...cfg,
+      stableAudio3: {...cfg.stableAudio3, genre: next},
+    };
+    setCfg(nextCfg);
+    // Use the dedicated binding so currently playing / prefetched BGM is not
+    // interrupted. The backend also persists the new value to config.json.
+    UpdateStableAudio3Genre(next).catch((e: any) => {
+      setErrorText(`ジャンル保存に失敗: ${e?.message ?? String(e)}`);
+    });
+  }
 
   return (
     <div className="app">
-      <div className="shell">
-        <header className="topbar">
+      <div className="radioCabinet">
+        <header className="radioHeader">
           <div className="brand">
-            <div className="brandMark" />
+            <div className="brandMark" aria-hidden="true" />
             <div className="brandTitle">
               <h1>fm-live-radio</h1>
               <span>AI ローカルラジオ</span>
             </div>
           </div>
-          <div className="statusGroup">
-            <div
-              className={`chip ${talkReady ? 'isReady' : (talkPrefetching ? 'isActive' : '')}`}
-              title={talkReady ? 'Talk ready' : (talkPrefetching ? 'Generating talk...' : 'Talk idle')}
-            >
-              <span className="dot" />
-              <span>Talk</span>
-            </div>
-            <div
-              className={`chip ${musicReady ? 'isReady' : (musicGenerating ? 'isActive' : '')}`}
-              title={musicReady ? 'Music ready' : (musicGenerating ? 'Generating music...' : 'Music idle')}
-            >
-              <span className="dot" />
-              <span>Music</span>
-            </div>
-            <button className="btn btnGhost" onClick={() => setShowSettings(true)}>
-              Settings
-            </button>
-          </div>
+          <button className="settingsButton" onClick={() => setShowSettings(true)} aria-label="Settings" title="Settings">
+            <span aria-hidden="true">⚙</span>
+          </button>
         </header>
 
         {errorText ? (
           <div className="toast">{errorText}</div>
         ) : null}
 
-        <section className="stage">
-          <div className="stageTop">
-            <div className={`onair ${isPlaying ? 'isLive' : ''}`}>
-              <span className="onairDot" />
-              {isPlaying ? 'ON AIR' : 'OFF AIR'}
-            </div>
-            <div className="kindPill">{current?.kind ?? 'idle'}</div>
-          </div>
-
-          <Visualizer
-            playing={isPlaying}
-            kind={current?.kind}
-            level={currentLevel}
-            audio={audioRef.current}
-            loudness={loudness}
-          />
-
-          <div className="stageInfo">
-            <h2 className="nowTitle" title={nowTitle}>{nowTitle}</h2>
-            <div className="nowSub" title={nowSub}>{nowSub}</div>
-
-            <div className="progressRow" aria-label="playback progress">
-              <div className="progressBar">
-                <div className="progressFill" style={{width: `${Math.round(progress * 100)}%`}} />
+        <main className="radioDeck">
+          <section className="controlPanel" aria-label="radio controls">
+            <div className="waveDisplay">
+              <div className="waveHeader">
+                <span className="waveSub" title={nowSub}>{nowSub}</span>
+                <span className="timeBadge">{fmtTime(elapsedSec)} / {fmtTime(durationSec)}</span>
               </div>
-              <div className="timeText">
-                {fmtTime(elapsedSec)} / {fmtTime(durationSec)}
+              <Visualizer
+                playing={isPlaying}
+                kind={current?.kind}
+                level={currentLevel}
+                audio={audioRef.current}
+                loudness={loudness}
+              />
+              <div className="progressRow" aria-label="playback progress">
+                <div className="progressBar">
+                  <div className="progressFill" style={{width: `${Math.round(progress * 100)}%`}} />
+                </div>
               </div>
             </div>
-          </div>
-        </section>
 
-        <section className="console">
-          <div className="transport">
-            <button
-              className={`playBtn ${isPlaying ? 'isPlaying' : ''}`}
-              onClick={onPlayPause}
-              disabled={!cfg}
-              aria-label={isPlaying ? 'Pause' : 'Play'}
-              title={isPlaying ? 'Pause' : 'Play'}
-            >
-              {isPlaying ? <span className="icoPause"><i /><i /></span> : <span className="icoPlay" />}
-            </button>
-            <button className="btn" onClick={onSkip} disabled={!isPlaying}>
-              Skip
-            </button>
+            <div className="controlLeft">
+              <div className="transportPanel">
+                <button
+                  className={`playBtn ${isPlaying ? 'isPlaying' : ''}`}
+                  onClick={onPlayPause}
+                  disabled={!cfg}
+                  aria-label={isPlaying ? 'Pause' : 'Play'}
+                  title={isPlaying ? 'Pause' : 'Play'}
+                >
+                  {isPlaying ? <span className="icoPause"><i /><i /></span> : <span className="icoPlay" />}
+                </button>
+                <button className="skipButton" onClick={onSkip} disabled={!isPlaying}>
+                  Skip
+                </button>
+              </div>
 
-          </div>
-
-          <div className="mixer">
-            <div className="range">
-              <div className="rangeLabel">BGM</div>
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.01}
-                value={bgmVolume}
-                onChange={(e) => {
-                  const v = parseFloat(e.target.value);
-                  setBgmVolume(v);
-                  if (cfg) {
-                    void persistConfig({...cfg, bgmVolume: v});
-                  }
-                }}
-              />
-              <div className="kv">{Math.round(bgmVolume * 100)}%</div>
+              <div className="lampPanel" aria-label="generation status">
+                <StatusLamp
+                  label="Talk"
+                  tone={talkReady ? "ready" : (talkPrefetching ? "active" : "idle")}
+                  caption={talkReady ? "ready" : (talkPrefetching ? "making" : "idle")}
+                />
+                <StatusLamp
+                  label="Music"
+                  tone={musicReady ? "ready" : (musicGenerating ? "active" : "idle")}
+                  caption={musicReady ? "ready" : (musicGenerating ? "making" : "idle")}
+                />
+                <StatusLamp
+                  label="Local"
+                  tone={errorLampTone}
+                  caption={errorText ? "error" : "normal"}
+                />
+              </div>
             </div>
 
-            <div className="range">
-              <div className="rangeLabel">Talk</div>
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.01}
-                value={talkVolume}
-                onChange={(e) => {
-                  const v = parseFloat(e.target.value);
-                  setTalkVolume(v);
-                  if (cfg) {
-                    void persistConfig({...cfg, talkVolume: v});
-                  }
-                }}
-              />
-              <div className="kv">{Math.round(talkVolume * 100)}%</div>
+            <div className="mixerPanel">
+              <KnobControl label="BGM" value={bgmVolume} onChange={updateBgmVolume} />
+              <KnobControl label="Talk" value={talkVolume} onChange={updateTalkVolume} />
             </div>
-          </div>
+          </section>
 
-          <div className="genre">
-            <label htmlFor="sa3GenreConsole">Genre</label>
-            <select
-              id="sa3GenreConsole"
-              className="genreSelect"
-              value={normalizeSa3Genre(cfg?.stableAudio3?.genre)}
-              onChange={(e) => {
-                const next = normalizeSa3Genre(e.target.value);
-                if (!cfg) return;
-                const nextCfg: AppConfig = {
-                  ...cfg,
-                  stableAudio3: {...cfg.stableAudio3, genre: next},
-                };
-                setCfg(nextCfg);
-                // Use the dedicated binding so currently playing / prefetched
-                // BGM is not interrupted (FR-10). The backend also persists
-                // the new value to config.json.
-                UpdateStableAudio3Genre(next).catch((e: any) => {
-                  setErrorText(`ジャンル保存に失敗: ${e?.message ?? String(e)}`);
-                });
-              }}
-            >
-              {SA3_GENRES.map((g) => (
-                <option key={g} value={g}>{g}</option>
-              ))}
-            </select>
-          </div>
+          <section className="tuningPanel" aria-label="tuning meter">
+            <div className="tuningMeter">
+              <div className="meterTop">
+                <span className={`onair meterOnair ${isPlaying ? 'isLive' : ''}`}>
+                  <span className="onairDot" />
+                  {isPlaying ? 'ON AIR' : 'OFF AIR'}
+                </span>
+                <span className="kindPill">{current?.kind ?? 'idle'}</span>
+              </div>
+              <div className="meterGlass">
+                <GenreTuner value={selectedGenre} disabled={!cfg} onSelect={updateGenre} />
+              </div>
+            </div>
+          </section>
+        </main>
 
-          <div className="hint">
-            Talk はBGM再生中に先読み生成されます（設定により変動）。音は止まらず流れ続けます。
-          </div>
-        </section>
+        <footer className="nameplate">
+          <span>Now playing</span>
+          <strong title={nowTitle}>{nowTitle}</strong>
+        </footer>
 
         <audio
           ref={audioRef}

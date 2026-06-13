@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Radio UI Refresh Review Board</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 24px; color: #1f2937; background: #f8fafc; }
+    main { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+    section { border: 1px solid #d1d5db; border-radius: 8px; padding: 16px; background: #fff; }
+    h1, h2 { margin-top: 0; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #d1d5db; padding: 8px; text-align: left; vertical-align: top; }
+  </style>
+</head>
+<body>
+  <h1>Radio UI Refresh Review Board</h1>
+  <main>
+    <section>
+      <h2>Decision Map</h2>
+      <table>
+        <tr><th>Decision</th><th>Options</th><th>Status</th></tr>
+        <tr><td>UI implementation</td><td>Code-native CSS/HTML with optional generated texture assets</td><td>Recommended</td></tr>
+        <tr><td>Settings redesign</td><td>Keep existing function, visual tune only</td><td>Recommended</td></tr>
+      </table>
+    </section>
+    <section>
+      <h2>Impact Map</h2>
+      <table>
+        <tr><th>Area</th><th>Impact</th><th>Owner</th></tr>
+        <tr><td>Frontend</td><td>Main layout, CSS, controls</td><td>Codex</td></tr>
+        <tr><td>Backend</td><td>No intended change</td><td>None</td></tr>
+        <tr><td>Docs</td><td>Current UI docs update after implementation</td><td>Codex</td></tr>
+      </table>
+    </section>
+    <section>
+      <h2>Risk Board</h2>
+      <table>
+        <tr><th>Risk</th><th>Mitigation</th><th>Residual Risk</th></tr>
+        <tr><td>Over-styled UI harms usability</td><td>Keep native controls and readable labels</td><td>Medium</td></tr>
+        <tr><td>Responsive layout breaks</td><td>Use grid and mobile breakpoint</td><td>Low</td></tr>
+        <tr><td>Generated image text becomes stale</td><td>Do not rely on image text for live state</td><td>Low</td></tr>
+      </table>
+    </section>
+    <section>
+      <h2>Review Lanes</h2>
+      <table>
+        <tr><th>Lane</th><th>Focus</th><th>Findings</th></tr>
+        <tr><td>Security</td><td>No new external runtime dependency or secrets</td><td>Pending</td></tr>
+        <tr><td>Frontend</td><td>Controls, responsive layout, readability</td><td>Pending</td></tr>
+        <tr><td>Backend</td><td>Confirm no API changes</td><td>Pending</td></tr>
+        <tr><td>QA</td><td>Build and visual smoke test</td><td>Pending</td></tr>
+      </table>
+    </section>
+    <section>
+      <h2>Traceability</h2>
+      <table>
+        <tr><th>Claim</th><th>Requirement</th><th>Specification</th><th>Test / Review</th></tr>
+        <tr><td>Radio metaphor</td><td>Cabinet, knobs, LEDs, tuner</td><td>Main Shell and control specs</td><td>Visual QA</td></tr>
+        <tr><td>Behavior preserved</td><td>Existing controls work</td><td>Inputs and persistence unchanged</td><td>Manual operation</td></tr>
+      </table>
+    </section>
+    <section>
+      <h2>Open Questions / Go-No-Go</h2>
+      <table>
+        <tr><th>Question</th><th>Needed Before</th><th>Decision Condition</th></tr>
+        <tr><td>User approval</td><td>Implementation</td><td>Approved plan</td></tr>
+      </table>
+    </section>
+  </main>
+</body>
+</html>

@@ -378,35 +378,41 @@ session option:
 
 ## フロントエンド仕様
 
-`frontend/src/App.tsx` は Wails generated API を呼び出す。UI は「無限に音が流れ続けるローカル AI ラジオ」を表現する、常時アニメーションする波形ビジュアライザを主役にした明るい/ミニマルなデザインで構成される。
+`frontend/src/App.tsx` は Wails generated API を呼び出す。UI は木目調のラジオ筐体、金属パネル、アンバーのチューニングメーター、LED 状態表示、波形窓で構成される。
 
 ファイル:
 
 - `frontend/src/App.tsx`: 画面構成、Wails API 呼び出し、再生制御。
 - `frontend/src/Visualizer.tsx`: 常時オンエアの波形ビジュアライザ (Canvas + requestAnimationFrame)。
-- `frontend/src/style.css`: デザイントークン (ライトテーマ) と全体スタイル。
-- `frontend/src/App.css`: レイアウト (Topbar / Stage / Console / Settings モーダル)。
+- `frontend/src/style.css`: ラジオ風テーマのデザイントークンと全体スタイル。
+- `frontend/src/App.css`: ラジオ筐体、操作盤、波形窓、ノブ、チューニングメーター、Settings モーダルのレイアウト。
+
+Wails window:
+
+- `main.go` の `options.App` は `Width: 1280`, `Height: 860`, `MinWidth: 900`, `MinHeight: 680` を指定する。
 
 画面構成:
 
-- Topbar:
+- Header:
   - brand
-  - Talk status chip
-  - Music status chip
-  - Settings button
-- Stage (主役):
-  - ON AIR / OFF AIR インジケータ (再生中は脈動)
-  - kind pill
+  - 右上 Settings button
+- Control panel:
+  - 黒ガラス風の波形窓
+  - ON AIR / OFF AIR インジケータ
   - Visualizer (波形)
-  - title / subtitle
   - progress bar / elapsed / duration
-- Console (操作):
-  - Play / Pause button (円形)
+  - Play / Pause button (発光する円形ボタン)
   - Skip button
-  - BGM volume range
-  - Talk volume range
-  - 先読み説明文
-  - SA3 Genre select: 4 つの固定値（`chill lo-fi`, `smooth jazz`, `minimal electronica`, `ambient music`）から即時選択。`App.UpdateStableAudio3Genre` を呼び、現在再生中・prefetch 中の BGM を中断せず、次回 BGM 生成から反映する。
+  - BGM volume knob
+  - Talk volume knob
+  - Talk / Music / Local error LED
+- Tuning panel:
+  - ON AIR / OFF AIR インジケータ
+  - current kind
+  - title / subtitle
+  - SA3 Genre tuner: 4 つの固定値（`chill lo-fi`, `smooth jazz`, `minimal electronica`, `ambient music`）をボタンとして表示。選択時は `App.UpdateStableAudio3Genre` を呼び、現在再生中・prefetch 中の BGM を中断せず、次回 BGM 生成から反映する。
+- Nameplate:
+  - 現在のタイトルを銘板風に表示する。
 - Settings modal:
   - アプリ機能設定（曲数、Silence Gap、BGM/Talk音量、RSS、LLM）
   - 生成設定（details タグで初期非表示。ORT、Stable Audio 3、Irodori）
@@ -440,6 +446,7 @@ App.tsx の loudness fetch:
 - BGM 再生中の subtitle は `BGM · stable_audio_3 · <genre>` 形式で `source.genre` を含める。provider または genre が欠落している場合は存在する項目のみを ` · ` 区切りで表示する。
 - 再生中は 500 ms 間隔で `GetStatus` を poll する。
 - 再生 progress は 250 ms 間隔で更新する。
+- 980px 以下では操作パネルとチューニングパネルを縦積みにし、720px 以下では操作盤内の transport / mixer / lamp も縦積みにする。
 
 ## 開発・検証
 
