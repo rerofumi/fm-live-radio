@@ -7,236 +7,161 @@ BGM を流しながら RSS から記事を選び、LLM で原稿を作り、TTS 
 
 現在は以下の構成で動きます。
 
-- BGM:
-  - Stable Audio 3 によるローカル生成
-- Talk:
-  - IrodoriTTS v3 によるローカル生成
-- Local inference:
-  - ONNX Runtime CPU
-  - ONNX Runtime CUDA (`auto` / `cuda` / `cpu`)
+- **BGM**: Stable Audio 3 によるローカル生成
+- **Talk**: IrodoriTTS v3 によるローカル生成
+- **Local inference**: ONNX Runtime CPU / CUDA (`auto` / `cuda` / `cpu`)
 
-## この README の対象
+---
 
-この README は、初回セットアップから `mise run dev` で起動し、ローカル生成と GPU 利用まで確認するための手順をまとめたものです。
+## 🚀 手順 1: コードリポジトリからビルドして動かす
 
-## 必要なもの
+ソースコードからアプリケーションをビルド、または開発モードで動作させる手順です。
 
-### 必須
+### 1. 前提条件と必要なツール
+* **OS**: Windows x64
+* **必須ツール**:
+  * [mise](https://mise.jdx.co/) (バージョン・ツールチェーン管理ツール)
+  * [uv](https://github.com/astral-sh/uv) (Python 依存解決・実行環境管理ツール)
+* **外部サービス/API**:
+  * OpenAI 互換の LLM API (例: Ollama, LM Studio, OpenRouter)
+  * 任意の RSS フィードの URL
 
-- Windows x64
-- `mise`
-- `uv`
-- OpenAI 互換 API
-  - 例: Ollama, LM Studio, OpenRouter
-- RSS URL
-
-### ローカル生成を使う場合
-
-以下のファイルやディレクトリが必要です。
-
-- Stable Audio 3 モデル:
-  - `model/sa3-sm-music/`
-- IrodoriTTS v3 モデル:
-  - `model/irodori-v3/`
-- 話者参照 WAV:
-  - `narrator/*.wav`
-  - 参照 WAV がなくても IrodoriTTS v3 のデフォルト話者では動きます
-
-このリポジトリでは、開発用の既定パスは次です。
-
-- Stable Audio 3:
-  - `model/sa3-sm-music`
-- IrodoriTTS:
-  - `model/irodori-v3`
-- narrator:
-  - `narrator`
-
-## 最初にやること
-
-### 1. `mise` を入れる
+### 2. ツールチェーンと CLI のインストール
+リポジトリのルートディレクトリで以下を実行し、ツールチェーンと Wails CLI をインストールします。
 
 ```powershell
-winget install jdx.mise
-```
-
-### 2. ツールチェーンを入れる
-
-```powershell
+# 1. ツールチェーン（Node.js, Go など）のインストール
 mise install
-```
 
-### 3. Wails CLI を入れる
-
-```powershell
+# 2. Wails CLI のインストール
 mise run setup
 ```
 
-### 4. GPU を使うなら ONNX Runtime と依存 DLL を入れる
+### 3. アセットとモデルの準備
 
-このプロジェクトでは GPU 用ファイルを Git に含めていません。  
-初回だけ次を実行してください。
-
+#### ① ONNX Runtime GPU と依存 DLL の導入
+GPU (CUDA) を利用した高速推論を行うための ONNX Runtime 1.26.0 と、対応する cuDNN/cuBLAS などの依存 DLL 群をスクリプトで一括導入します。
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\download_gpu_ort.ps1
 ```
 
-このスクリプトは次を行います。
-
-- ONNX Runtime CUDA 13 asset
-  - `onnxruntime-win-x64-gpu_cuda13-1.26.0.zip`
-  をダウンロード
-- `third_party/onnxruntime-gpu/onnxruntime-win-x64-gpu-1.26.0/` に展開
-- `uv` を使って `nvidia-cudnn-cu13==9.23.1.3` を `third_party/` 配下へ展開
-- `cuDNN`, `cuBLAS`, `nvrtc` の必要 DLL を ORT の `lib` にコピー
-
-展開後に使われる `onnxruntime.dll` は次です。
-
-- `third_party/onnxruntime-gpu/onnxruntime-win-x64-gpu-1.26.0/lib/onnxruntime.dll`
-
-### 5. スモークテストを回す
-
-CPU / GPU の切り分けに使います。
-
+#### ② Stable Audio 3 の重みファイル (ONNX) のダウンロード
+Stable Audio 3 の最適化 ONNX モデル（モデル配布元: [stabilityai/stable-audio-3-optimized](https://huggingface.co/stabilityai/stable-audio-3-optimized)）をダウンロードします。
+※ダウンロードには Stability AI のコミュニティライセンスへの同意が必要です。あらかじめ上記URLにて同意の上、必要に応じて Hugging Face のアクセストークン（Read）を環境変数 `HF_TOKEN` に設定してスクリプトを実行してください。
 ```powershell
-mise x -- go run ./cmd/local_smoketest
+# 必要に応じてトークンを設定（403等でダウンロードできない場合のみ）
+$env:HF_TOKEN = "your_huggingface_token"
+
+# ダウンロードスクリプトの実行
+powershell -ExecutionPolicy Bypass -File scripts\download_sa3_models.ps1
 ```
 
-GPU 強制確認:
+#### ③ IrodoriTTS v3 の重みファイル (ONNX) の生成
+IrodoriTTS v3 モデルは HuggingFace からダウンロードした上で、ONNX 形式への変換が必要です。変換には [mtsmfm/Irodori-TTS-ONNX](https://github.com/mtsmfm/Irodori-TTS-ONNX) の exporter を使用します。
 
+1. 適当な作業用ディレクトリで `Irodori-TTS-ONNX` をクローンします。
+   ```bash
+   git clone https://github.com/mtsmfm/Irodori-TTS-ONNX.git
+   cd Irodori-TTS-ONNX/onnx_exporter
+   ```
+2. `uv` を使用して依存関係をセットアップします。
+   ```bash
+   uv sync
+   ```
+3. 以下のエクスポートコマンドを実行し、モデルを `fm-live-radio` のモデルディレクトリに出力します。
+   ```bash
+   # output-dir のパスは fm-live-radio のルート配下にある `model/irodori-v3` を指定してください
+   uv run irodori-tts-onnx-export \
+       --hf-checkpoint Aratako/Irodori-TTS-500M-v3 \
+       --output-dir /path/to/fm-live-radio/model/irodori-v3
+   ```
+
+#### ④ 話者参照 WAV ファイルの配置
+* `narrator/narrator_01.wav` は最初からリポジトリに同梱されています。
+* 声を変更したい場合は、このフォルダにお好みの声（wav形式）を追加・差し替えてください。
+
+### 4. 動作テスト
+GPU が正しく認識され、推論ができるかスモークテストで確認します。
 ```powershell
+# 通常テスト (auto)
+mise x -- go run ./cmd/local_smoketest
+
+# GPU (CUDA) を強制してテスト
 $env:FM_RADIO_ORT_EP='cuda'
 mise x -- go run ./cmd/local_smoketest
-```
-
-終わったら環境変数を消してください。
-
-```powershell
 Remove-Item Env:FM_RADIO_ORT_EP
 ```
 
-## 起動
-
-### 開発起動
-
+### 5. アプリケーションの起動とビルド
 ```powershell
+# 開発モードで起動
 mise run dev
-```
 
-### 本番ビルド
-
-```powershell
+# 本番用 exe のビルド
+# 実行ファイルは build/bin/fm-live-radio.exe に出力されます
 mise run build
 ```
 
-## 初回起動後に Settings で設定する項目
+---
 
-最低限、以下を埋めれば動きます。
+## 📦 手順 2: ビルド済みの exe を入手して動かす
 
-- `RSS URLs`
-- `LLM Base URL`
-- `LLM Model`
+すでにビルドされた `fm-live-radio.exe` のみを入手し、一般ユーザーとして動作させる手順です。
 
-### 推奨のローカル生成設定
-
-- `Local Inference Provider` = `auto`
-- `ORT DLL Path` = 空でよい
-  - 既定探索で GPU ORT を拾います
-
-## GPU 利用の考え方
-
-- `Local Inference Provider` の既定値は `auto`
-- `auto`
-  - CUDA が使えれば GPU
-  - 使えなければ CPU へフォールバック
-- `cuda`
-  - GPU を強制
-  - 失敗時はエラー
-- `cpu`
-  - 常に CPU
-
-起動ログで次が出れば GPU 版 ORT を読めています。
+### 1. 動作に必要なファイルの配置
+実行ファイル `fm-live-radio.exe` を任意のフォルダに配置し、そのフォルダをカレントディレクトリとして、以下のファイル・フォルダ構造を作成してください。
 
 ```text
-INFO: using ONNX Runtime shared library: third_party\onnxruntime-gpu\onnxruntime-win-x64-gpu-1.26.0\lib\onnxruntime.dll
+任意のインストールフォルダ/
+├── fm-live-radio.exe
+│
+├── model/
+│   ├── sa3-sm-music/                 # 手順1の 3.② で入手した Stable Audio 3 モデル
+│   └── irodori-v3/                   # 手順1の 3.③ で生成した IrodoriTTS v3 モデル
+│
+├── narrator/
+│   └── narrator_01.wav               # 同梱の話者参照 WAV ファイル (任意)
+│
+└── third_party/
+    └── onnxruntime-gpu/
+        └── onnxruntime-win-x64-gpu-1.26.0/
+            └── lib/
+                ├── onnxruntime.dll   # 手順1の 3.① でダウンロードした DLL 群
+                ├── cudnn64_9.dll
+                ├── cublas64_13.dll
+                └── ...
 ```
+> [!NOTE]
+> CPU のみで動作させる場合は、`third_party/onnxruntime-gpu/...` の代わりに CPU 版の `onnxruntime.dll` を `fm-live-radio.exe` と同じフォルダに直接配置するだけでも動作します。
 
-このログが出ていて、さらに `Local Inference Provider = cuda` で生成が通るなら GPU 実行です。
+### 2. アプリの起動と初回設定
+1. `fm-live-radio.exe` を実行します。
+2. 起動後、画面左下の `Settings` (歯車アイコン) を開き、以下の項目を設定します。
+   * **RSS URLs**: 取得したい RSS フィードの URL（例: Impress Watch 等）
+   * **LLM Base URL**: ローカル LLM 等の API エンドポイント (例: Ollama の場合は `http://localhost:11434/v1`)
+   * **LLM Model**: 使用するモデル名 (例: `gpt-4o-mini` またはローカルモデル名)
+   * **Local Inference Provider**: `auto` (GPUが使えれば自動使用) または GPU 強制時は `cuda`、CPUのみ時は `cpu` を選択します。
+3. `Save Config` をクリックして設定を保存します。
 
-## このリポジトリで増えた「初回に必要な関連ファイル」
+---
 
-初回セットアップで意識すべきものをまとめると次です。
+## ⚙️ 詳細仕様・その他の情報
 
-### リポジトリ内
+### 設定とデータの保存先
+設定ファイルおよび生成履歴は、Windows の標準的なユーザー設定ディレクトリに保存されます。
+- **設定ファイル**: `%APPDATA%\fm-live-radio\config.json`
+- **履歴ファイル**: `%APPDATA%\fm-live-radio\history.json`
+- **一時音声キャッシュ**: `%APPDATA%\fm-live-radio\temp_audio\` (起動時に自動クリーンアップされます)
 
-- `scripts/download_gpu_ort.ps1`
-- `cmd/local_smoketest/main.go`
-- `model/sa3-sm-music`
-- `model/irodori-v3`
-- `narrator`
+### 開発時の注意事項
+* `go`, `npm`, `wails` コマンドを直接実行しないでください。必ず `mise x -- <command>` または `mise run <command>` を経由させてください。
+* Go の API 定義（構造体やバインド）を変更した場合は、以下を実行してフロントエンド用のコードを再生成してください。
+  ```powershell
+  mise x -- wails generate module
+  ```
 
-### スクリプト実行後に生成されるもの
+---
 
-- `third_party/onnxruntime-gpu/onnxruntime-win-x64-gpu-1.26.0/`
-- `third_party/nvidia-cudnn-cu13/`
+## 📄 ライセンス
+[MIT License](LICENSE)
 
-これらは Git 管理対象ではなく、初回セットアップで作られるローカル依存物です。
-
-## 設定ファイルの保存先
-
-設定や履歴は `os.UserConfigDir()` 配下に保存されます。  
-この環境では次です。
-
-- `C:\Users\rero2\AppData\Roaming\fm-live-radio\config.json`
-- `C:\Users\rero2\AppData\Roaming\fm-live-radio\history.json`
-- `C:\Users\rero2\AppData\Roaming\fm-live-radio\temp_audio\`
-
-`temp_audio/` は起動時に掃除されます。
-
-## 開発メモ
-
-- `go`, `npm`, `wails` は直接実行しない
-- 必ず `mise x -- ...` か `mise run ...` を使う
-- Go 側 API を変えたら:
-
-```powershell
-mise x -- wails generate module
-```
-
-- フロント単体ビルド確認:
-
-```powershell
-mise x -- npm --prefix frontend run build
-```
-
-- Go 側確認:
-
-```powershell
-mise x -- go test ./...
-```
-
-## トラブル時の最短確認
-
-### CPU fallback になった
-
-1. `scripts\download_gpu_ort.ps1` を再実行
-2. `mise x -- go run ./cmd/local_smoketest`
-3. `Local Inference Provider = cuda` で再確認
-
-### ORT の読み先を固定したい
-
-Settings の `ORT DLL Path` に次を入れます。
-
-`E:\programming\AI_generative\fm-live-radio\third_party\onnxruntime-gpu\onnxruntime-win-x64-gpu-1.26.0\lib\onnxruntime.dll`
-
-### 何を読んでいるか確認したい
-
-起動ログ of `INFO: using ONNX Runtime shared library: ...` を見ます。
-
-## Security
-
-- API キーは `config.json` に保存されます
-- ログ共有時は API キーや個人パスを必要に応じてマスクしてください
-
-## License
-
-MIT
