@@ -1,6 +1,6 @@
 # fm-live-radio
 
-![Screenshot_mapmode](docs/screenshot_fm-live-radio_2025-12-13-a.png)
+![Screenshot_mapmode](docs/screenshot_fm-live-radio_2026-06-13-a.png)
 
 Wails + Go + React で作った AI ローカルラジオです。  
 BGM を流しながら RSS から記事を選び、LLM で原稿を作り、TTS でニューストークを差し込みます。
@@ -164,4 +164,3 @@ mise run build
 
 ## 📄 ライセンス
 [MIT License](LICENSE)
-
