@@ -1,5 +1,6 @@
 import {useEffect, useMemo, useRef, useState} from 'react';
 import './App.css';
+import Visualizer from './Visualizer';
 
 import {GetNextItem, GetStatus, LoadConfig, PrefetchTalk, SaveConfig, ScanGenres, SkipCurrent} from "../wailsjs/go/main/App";
 
@@ -390,27 +391,35 @@ function App() {
         : '間（無音）')
     : '再生を開始してください';
 
+  const currentLevel = current?.kind === 'talk' ? talkVolume : bgmVolume;
+
   return (
     <div className="app">
       <div className="shell">
-        <header className="header">
+        <header className="topbar">
           <div className="brand">
             <div className="brandMark" />
             <div className="brandTitle">
               <h1>fm-live-radio</h1>
-              <span>AIローカルラジオ</span>
+              <span>AI ローカルラジオ</span>
             </div>
           </div>
-          <div className="toolbar">
-            <div className="pilot" title={talkReady ? 'Talk ready' : (talkPrefetching ? 'Generating talk...' : 'Talk idle')}>
-              <span className={`lamp ${talkReady ? 'lampReady' : (talkPrefetching ? 'lampActive' : '')}`} />
-              <span className="pilotText">Talk</span>
+          <div className="statusGroup">
+            <div
+              className={`chip ${talkReady ? 'isReady' : (talkPrefetching ? 'isActive' : '')}`}
+              title={talkReady ? 'Talk ready' : (talkPrefetching ? 'Generating talk...' : 'Talk idle')}
+            >
+              <span className="dot" />
+              <span>Talk</span>
             </div>
-            <div className="pilot" title={musicReady ? 'Music ready' : (musicGenerating ? 'Generating music...' : 'Music idle')}>
-              <span className={`lamp ${musicReady ? 'lampReady' : (musicGenerating ? 'lampActive' : '')}`} />
-              <span className="pilotText">Music</span>
+            <div
+              className={`chip ${musicReady ? 'isReady' : (musicGenerating ? 'isActive' : '')}`}
+              title={musicReady ? 'Music ready' : (musicGenerating ? 'Generating music...' : 'Music idle')}
+            >
+              <span className="dot" />
+              <span>Music</span>
             </div>
-            <button className="btn" onClick={() => setShowSettings(true)}>
+            <button className="btn btnGhost" onClick={() => setShowSettings(true)}>
               Settings
             </button>
           </div>
@@ -420,11 +429,47 @@ function App() {
           <div className="toast">{errorText}</div>
         ) : null}
 
-        <section className="card">
-          <div className="cardTitle">Controls</div>
+        <section className="stage">
+          <div className="stageTop">
+            <div className={`onair ${isPlaying ? 'isLive' : ''}`}>
+              <span className="onairDot" />
+              {isPlaying ? 'ON AIR' : 'OFF AIR'}
+            </div>
+            <div className="kindPill">{current?.kind ?? 'idle'}</div>
+          </div>
 
-          <div className="controlsRow" style={{marginBottom: 12}}>
-            <div className="field">
+          <Visualizer playing={isPlaying} kind={current?.kind} level={currentLevel} />
+
+          <div className="stageInfo">
+            <h2 className="nowTitle" title={nowTitle}>{nowTitle}</h2>
+            <div className="nowSub" title={nowSub}>{nowSub}</div>
+
+            <div className="progressRow" aria-label="playback progress">
+              <div className="progressBar">
+                <div className="progressFill" style={{width: `${Math.round(progress * 100)}%`}} />
+              </div>
+              <div className="timeText">
+                {fmtTime(elapsedSec)} / {fmtTime(durationSec)}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="console">
+          <div className="transport">
+            <button
+              className={`playBtn ${isPlaying ? 'isPlaying' : ''}`}
+              onClick={onPlayPause}
+              disabled={!cfg}
+              aria-label={isPlaying ? 'Pause' : 'Play'}
+              title={isPlaying ? 'Pause' : 'Play'}
+            >
+              {isPlaying ? <span className="icoPause"><i /><i /></span> : <span className="icoPlay" />}
+            </button>
+            <button className="btn" onClick={onSkip} disabled={!isPlaying}>
+              Skip
+            </button>
+            <div className="genre">
               <label>Genre</label>
               <select
                 value={selectedGenre}
@@ -443,78 +488,50 @@ function App() {
                 ))}
               </select>
             </div>
-
-            <button className={`btn ${isPlaying ? 'btnDanger' : 'btnPrimary'}`} onClick={onPlayPause} disabled={!cfg}>
-              {isPlaying ? 'Pause' : 'Play'}
-            </button>
-            <button className="btn" onClick={onSkip} disabled={!isPlaying}>
-              Skip
-            </button>
           </div>
 
-          <div className="range" style={{marginBottom: 10}}>
-            <div className="small">BGM Vol</div>
-            <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.01}
-              value={bgmVolume}
-              onChange={(e) => {
-                const v = parseFloat(e.target.value);
-                setBgmVolume(v);
-                if (cfg) {
-                  void persistConfig({...cfg, bgmVolume: v});
-                }
-              }}
-            />
-            <div className="kv">{Math.round(bgmVolume * 100)}%</div>
-          </div>
-
-          <div className="range">
-            <div className="small">Talk Vol</div>
-            <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.01}
-              value={talkVolume}
-              onChange={(e) => {
-                const v = parseFloat(e.target.value);
-                setTalkVolume(v);
-                if (cfg) {
-                  void persistConfig({...cfg, talkVolume: v});
-                }
-              }}
-            />
-            <div className="kv">{Math.round(talkVolume * 100)}%</div>
-          </div>
-
-          <div className="small" style={{marginTop: 12}}>
-            Talk生成はBGM再生中に先読みされます（設定により変動）。
-          </div>
-        </section>
-
-        <section className="card">
-          <div className="cardTitle">Now Playing</div>
-          <div className="now">
-            <div className="art" />
-            <div className="nowText">
-              <div className="kindPill">
-                {current?.kind ?? 'idle'}
-              </div>
-              <h3 className="nowTitle" title={nowTitle}>{nowTitle}</h3>
-              <div className="nowSub" title={nowSub}>{nowSub}</div>
-
-              <div className="progressRow" aria-label="playback progress">
-                <div className="progressBar">
-                  <div className="progressFill" style={{width: `${Math.round(progress * 100)}%`}} />
-                </div>
-                <div className="timeText">
-                  {fmtTime(elapsedSec)} / {fmtTime(durationSec)}
-                </div>
-              </div>
+          <div className="mixer">
+            <div className="range">
+              <div className="rangeLabel">BGM</div>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.01}
+                value={bgmVolume}
+                onChange={(e) => {
+                  const v = parseFloat(e.target.value);
+                  setBgmVolume(v);
+                  if (cfg) {
+                    void persistConfig({...cfg, bgmVolume: v});
+                  }
+                }}
+              />
+              <div className="kv">{Math.round(bgmVolume * 100)}%</div>
             </div>
+
+            <div className="range">
+              <div className="rangeLabel">Talk</div>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.01}
+                value={talkVolume}
+                onChange={(e) => {
+                  const v = parseFloat(e.target.value);
+                  setTalkVolume(v);
+                  if (cfg) {
+                    void persistConfig({...cfg, talkVolume: v});
+                  }
+                }}
+              />
+              <div className="kv">{Math.round(talkVolume * 100)}%</div>
+            </div>
+          </div>
+
+          <div className="hint">
+            Talk はBGM再生中に先読み生成されます（設定により変動）。音は止まらず流れ続けます。
           </div>
         </section>
 

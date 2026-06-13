@@ -405,29 +405,44 @@ session option:
 
 ## フロントエンド仕様
 
-`frontend/src/App.tsx` は Wails generated API を呼び出す。
+`frontend/src/App.tsx` は Wails generated API を呼び出す。UI は「無限に音が流れ続けるローカル AI ラジオ」を表現する、常時アニメーションする波形ビジュアライザを主役にした明るい/ミニマルなデザインで構成される。
+
+ファイル:
+
+- `frontend/src/App.tsx`: 画面構成、Wails API 呼び出し、再生制御。
+- `frontend/src/Visualizer.tsx`: 常時オンエアの波形ビジュアライザ (Canvas + requestAnimationFrame)。
+- `frontend/src/style.css`: デザイントークン (ライトテーマ) と全体スタイル。
+- `frontend/src/App.css`: レイアウト (Topbar / Stage / Console / Settings モーダル)。
 
 画面構成:
 
-- Header:
+- Topbar:
   - brand
-  - Talk status lamp
-  - Music status lamp
+  - Talk status chip
+  - Music status chip
   - Settings button
-- Controls:
-  - Genre select
-  - Play / Pause button
+- Stage (主役):
+  - ON AIR / OFF AIR インジケータ (再生中は脈動)
+  - kind pill
+  - Visualizer (波形)
+  - title / subtitle
+  - progress bar / elapsed / duration
+- Console (操作):
+  - Play / Pause button (円形)
   - Skip button
+  - Genre select
   - BGM volume range
   - Talk volume range
-- Now Playing:
-  - kind pill
-  - title
-  - subtitle
-  - progress bar
-  - elapsed / duration
+  - 先読み説明文
 - Settings modal:
   - BGM / TTS / Talk / LLM / ORT / Stable Audio 3 / Irodori / RSS 設定
+
+Visualizer:
+
+- `playing` / `kind` / `level`(現在 kind の音量) を入力に、振幅・速度・色相を補間してなめらかに変化させる。
+- アイドル/一時停止でも静かに流れ続け、「音が流れ続ける」コンセプトを表現する。
+- 実音声の FFT 解析は使わない。BGM/Talk はローカル別オリジン (`127.0.0.1:<port>`) 配信のため `AnalyserNode` が無音データになりやすく、音声経路を壊すリスクがある。状態駆動の合成アニメーションで描画する。
+- `prefers-reduced-motion` 時は静止フレームを描画し、状態変化時のみ再描画する。
 
 再生:
 
