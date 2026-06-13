@@ -2,20 +2,6 @@ package domain
 
 // NOTE: These structs are exported so Wails can generate TS bindings.
 
-type BGMSource string
-
-const (
-	BGMSourceFiles        BGMSource = "files"
-	BGMSourceStableAudio3 BGMSource = "stable_audio_3"
-)
-
-type TTSSource string
-
-const (
-	TTSSourceGemini  TTSSource = "gemini"
-	TTSSourceIrodori TTSSource = "irodori"
-)
-
 type TalkConfig struct {
 	Enabled           bool `json:"enabled"`
 	CycleBgmCount     int  `json:"cycleBgmCount"`
@@ -31,12 +17,6 @@ type LLMConfig struct {
 	Model   string `json:"model"`
 }
 
-type TTSConfig struct {
-	Enabled bool   `json:"enabled"`
-	Model   string `json:"model"`
-	Voice   string `json:"voice"`
-}
-
 type LocalInferenceConfig struct {
 	ORTLibraryPath    string `json:"ortLibraryPath"`
 	MaxWorkers        int    `json:"maxWorkers"`
@@ -45,10 +25,10 @@ type LocalInferenceConfig struct {
 }
 
 type StableAudio3Config struct {
-	Enabled    bool    `json:"enabled"`
 	ModelDir   string  `json:"modelDir"`
 	OutputDir  string  `json:"outputDir"`
 	PromptBase string  `json:"promptBase"`
+	Genre      string  `json:"genre"`
 	Seconds    float64 `json:"seconds"`
 	Steps      int     `json:"steps"`
 	SeedMode   string  `json:"seedMode"`
@@ -57,7 +37,6 @@ type StableAudio3Config struct {
 }
 
 type IrodoriConfig struct {
-	Enabled       bool    `json:"enabled"`
 	ModelDir      string  `json:"modelDir"`
 	NarratorDir   string  `json:"narratorDir"`
 	RefWAV        string  `json:"refWav"`
@@ -72,19 +51,13 @@ type IrodoriConfig struct {
 }
 
 type AppConfig struct {
-	BGMRootPath   string    `json:"bgmRootPath"`
-	SelectedGenre string    `json:"selectedGenre"`
-	RSSUrls       []string  `json:"rssUrls"`
-	GeminiAPIKey  string    `json:"geminiApiKey"`
-	BGMSource     BGMSource `json:"bgmSource"`
-	TTSSource     TTSSource `json:"ttsSource"`
+	RSSUrls []string `json:"rssUrls"`
 
 	BGMVolume  float64 `json:"bgmVolume"`
 	TalkVolume float64 `json:"talkVolume"`
 
 	Talk           TalkConfig           `json:"talk"`
 	LLM            LLMConfig            `json:"llm"`
-	TTS            TTSConfig            `json:"tts"`
 	LocalInference LocalInferenceConfig `json:"localInference"`
 	StableAudio3   StableAudio3Config   `json:"stableAudio3"`
 	Irodori        IrodoriConfig        `json:"irodori"`
@@ -127,12 +100,10 @@ type PlayableItem struct {
 }
 
 type NextItemRequest struct {
-	SelectedGenre string `json:"selectedGenre"`
 }
 
 type SkipRequest struct {
-	SelectedGenre string       `json:"selectedGenre"`
-	CurrentKind   PlayableKind `json:"currentKind"`
+	CurrentKind PlayableKind `json:"currentKind"`
 }
 
 type AppStatus struct {

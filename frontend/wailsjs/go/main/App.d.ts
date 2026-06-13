@@ -12,6 +12,6 @@ export function PrefetchTalk():Promise<void>;
 
 export function SaveConfig(arg1:domain.AppConfig):Promise<void>;
 
-export function ScanGenres():Promise<Array<string>>;
-
 export function SkipCurrent(arg1:domain.SkipRequest):Promise<domain.PlayableItem>;
+
+export function UpdateStableAudio3Genre(arg1:string):Promise<void>;

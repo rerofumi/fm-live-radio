@@ -3,5 +3,4 @@ node_modules
 frontend/dist
 model/
 generate_music/
-narrator/
 third_party/

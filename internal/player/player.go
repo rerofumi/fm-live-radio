@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"fm-live-radio/internal/audio"
-	"fm-live-radio/internal/bgm"
 	"fm-live-radio/internal/domain"
 	"fm-live-radio/internal/generation"
 	"fm-live-radio/internal/musicgen"
@@ -53,18 +52,19 @@ func (p *Player) UpdateConfig(cfg domain.AppConfig) {
 	p.clearPrefetchLocked()
 }
 
+// UpdateStableAudio3Genre changes only the Stable Audio 3 genre on the
+// runtime config. Per FR-10, the currently playing item and any music that
+// is already prefetched or generating must not be interrupted; the new genre
+// is applied to subsequent BGM generations.
+func (p *Player) UpdateStableAudio3Genre(genre string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.cfg.StableAudio3.Genre = genre
+}
+
 func (p *Player) NextItem(audioSrv *audio.Server, talkSvc *talk.Service, musicSvc *musicgen.Service, req domain.NextItemRequest, hist domain.History) (domain.PlayableItem, domain.History, bool, error) {
 	p.mu.Lock()
 	cfg := p.cfg
-	// We mutate these; keep them protected.
-	genre := req.SelectedGenre
-	if genre == "" {
-		genre = cfg.SelectedGenre
-	}
-	if cfg.BGMSource == domain.BGMSourceFiles && (cfg.BGMRootPath == "" || genre == "") {
-		p.mu.Unlock()
-		return domain.PlayableItem{}, hist, false, ErrNotConfigured
-	}
 
 	// Insert a "radio-like" gap between items.
 	if p.pendingSilence && cfg.Talk.SilenceGapMinMs > 0 {
@@ -151,59 +151,13 @@ func (p *Player) NextItem(audioSrv *audio.Server, talkSvc *talk.Service, musicSv
 		p.bgmCountSinceLastTalk = 0
 		p.pendingSilence = true
 		p.mu.Unlock()
-		return p.pickBGM(audioSrv, talkSvc, musicSvc, cfg, genre, hist)
+		return p.pickBGM(audioSrv, talkSvc, musicSvc, cfg, hist)
 	}
 
-	return p.pickBGM(audioSrv, talkSvc, musicSvc, cfg, genre, hist)
+	return p.pickBGM(audioSrv, talkSvc, musicSvc, cfg, hist)
 }
 
-func (p *Player) pickBGM(audioSrv *audio.Server, talkSvc *talk.Service, musicSvc *musicgen.Service, cfg domain.AppConfig, genre string, hist domain.History) (domain.PlayableItem, domain.History, bool, error) {
-	if cfg.BGMSource == domain.BGMSourceStableAudio3 && musicSvc != nil {
-		return p.pickGeneratedBGM(audioSrv, talkSvc, musicSvc, cfg, genre, hist)
-	}
-	tracks, err := bgm.ListTracks(cfg.BGMRootPath, genre)
-	if err != nil {
-		return domain.PlayableItem{}, hist, false, err
-	}
-	t, err := bgm.PickRandomTrack(tracks, p.lastTrackPath)
-	if err != nil {
-		return domain.PlayableItem{}, hist, false, err
-	}
-
-	p.mu.Lock()
-	p.lastTrackPath = t.Path
-	p.bgmCountSinceLastTalk++
-	p.pendingSilence = true
-	count := p.bgmCountSinceLastTalk
-	p.mu.Unlock()
-
-	// Opportunistic prefetch when we are close to talk slot.
-	cycle := cfg.Talk.CycleBgmCount
-	if cycle <= 0 {
-		cycle = 3
-	}
-	if talkSvc != nil && cfg.Talk.Enabled && count >= cycle-1 {
-		p.PrefetchTalk(talkSvc, cfg, hist)
-	}
-
-	url, err := audioSrv.RegisterFile(t.Path, 10*time.Minute)
-	if err != nil {
-		return domain.PlayableItem{}, hist, false, err
-	}
-
-	return domain.PlayableItem{
-		ID:    uuid.NewString(),
-		Kind:  domain.PlayableKindBGM,
-		URL:   url,
-		Title: t.Title,
-		Source: domain.PlayableSource{
-			Genre:    genre,
-			FilePath: t.Path,
-		},
-	}, hist, false, nil
-}
-
-func (p *Player) pickGeneratedBGM(audioSrv *audio.Server, talkSvc *talk.Service, musicSvc *musicgen.Service, cfg domain.AppConfig, genre string, hist domain.History) (domain.PlayableItem, domain.History, bool, error) {
+func (p *Player) pickBGM(audioSrv *audio.Server, talkSvc *talk.Service, musicSvc *musicgen.Service, cfg domain.AppConfig, hist domain.History) (domain.PlayableItem, domain.History, bool, error) {
 	p.mu.Lock()
 	prefetched := p.prefetchedMusic
 	if prefetched != nil {
@@ -218,7 +172,10 @@ func (p *Player) pickGeneratedBGM(audioSrv *audio.Server, talkSvc *talk.Service,
 	} else {
 		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 		defer cancel()
-		res, err = musicSvc.Generate(ctx, cfg, genre)
+		if musicSvc == nil {
+			return domain.PlayableItem{}, hist, false, ErrNotConfigured
+		}
+		res, err = musicSvc.Generate(ctx, cfg)
 		if err != nil {
 			if fallback, fbErr := musicSvc.Fallback(cfg); fbErr == nil {
 				res = fallback
@@ -243,7 +200,7 @@ func (p *Player) pickGeneratedBGM(audioSrv *audio.Server, talkSvc *talk.Service,
 	if talkSvc != nil && cfg.Talk.Enabled && count >= cycle-1 {
 		p.PrefetchTalk(talkSvc, cfg, hist)
 	}
-	p.PrefetchMusic(musicSvc, cfg, genre)
+	p.PrefetchMusic(musicSvc, cfg)
 
 	url, err := audioSrv.RegisterFile(res.AudioPath, 10*time.Minute)
 	if err != nil {
@@ -255,9 +212,9 @@ func (p *Player) pickGeneratedBGM(audioSrv *audio.Server, talkSvc *talk.Service,
 		URL:   url,
 		Title: res.Title,
 		Source: domain.PlayableSource{
-			Genre:    genre,
 			FilePath: res.AudioPath,
-			Provider: string(domain.BGMSourceStableAudio3),
+			Provider: "stable_audio_3",
+			Genre:    res.Genre,
 			Prompt:   res.Prompt,
 			Seed:     res.Seed,
 			ModelDir: cfg.StableAudio3.ModelDir,
@@ -307,7 +264,7 @@ func (p *Player) Skip(audioSrv *audio.Server, talkSvc *talk.Service, musicSvc *m
 	// NOTE: If talk is already ready, we intentionally keep p.prefetchedTalk.
 	p.mu.Unlock()
 
-	return p.NextItem(audioSrv, talkSvc, musicSvc, domain.NextItemRequest{SelectedGenre: req.SelectedGenre}, hist)
+	return p.NextItem(audioSrv, talkSvc, musicSvc, domain.NextItemRequest{}, hist)
 }
 
 // PrefetchTalk starts generating next talk in the background if we are close to the talk slot.
@@ -398,8 +355,8 @@ func (p *Player) Status() domain.AppStatus {
 	}
 }
 
-func (p *Player) PrefetchMusic(musicSvc *musicgen.Service, cfg domain.AppConfig, genre string) {
-	if musicSvc == nil || cfg.BGMSource != domain.BGMSourceStableAudio3 {
+func (p *Player) PrefetchMusic(musicSvc *musicgen.Service, cfg domain.AppConfig) {
+	if musicSvc == nil {
 		return
 	}
 	p.mu.Lock()
@@ -419,7 +376,7 @@ func (p *Player) PrefetchMusic(musicSvc *musicgen.Service, cfg domain.AppConfig,
 			p.cancelMusicPrefetch = nil
 			p.mu.Unlock()
 		}()
-		res, err := musicSvc.Generate(ctx, cfg, genre)
+		res, err := musicSvc.Generate(ctx, cfg)
 		if err != nil {
 			p.setLocalGenerationError(err)
 			return

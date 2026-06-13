@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Stable Audio Genre Review Board</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 24px; color: #1f2937; background: #f8fafc; }
+    main { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+    section { border: 1px solid #d1d5db; border-radius: 8px; padding: 16px; background: #fff; }
+    h1, h2 { margin-top: 0; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #d1d5db; padding: 8px; text-align: left; vertical-align: top; }
+    th { background: #f1f5f9; }
+  </style>
+</head>
+<body>
+  <h1>Stable Audio Genre Review Board</h1>
+  <main>
+    <section>
+      <h2>Decision Map</h2>
+      <table>
+        <tr><th>Decision</th><th>Options</th><th>Status</th></tr>
+        <tr><td>Default genre</td><td>chill lo-fi / other</td><td>Proposed: chill lo-fi</td></tr>
+        <tr><td>Prompt composition</td><td>replace promptBase / prepend genre</td><td>Proposed: prepend genre</td></tr>
+        <tr><td>Change timing</td><td>next generation / immediate reset</td><td>Proposed: next generation</td></tr>
+      </table>
+    </section>
+    <section>
+      <h2>Impact Map</h2>
+      <table>
+        <tr><th>Area</th><th>Impact</th><th>Owner</th></tr>
+        <tr><td>Backend config</td><td>Add genre field and defaults</td><td>Go</td></tr>
+        <tr><td>Prompt generation</td><td>Include selected genre</td><td>Go</td></tr>
+        <tr><td>Frontend</td><td>Add select controls</td><td>React</td></tr>
+        <tr><td>Docs</td><td>Update current docs after implementation</td><td>Docs</td></tr>
+      </table>
+    </section>
+    <section>
+      <h2>Risk Board</h2>
+      <table>
+        <tr><th>Risk</th><th>Mitigation</th><th>Residual Risk</th></tr>
+        <tr><td>Binding mismatch</td><td>Regenerate Wails bindings and run frontend build</td><td>Low</td></tr>
+        <tr><td>Unknown genre in config</td><td>Normalize to default</td><td>Low</td></tr>
+        <tr><td>Layout overflow</td><td>Use compact select and responsive CSS</td><td>Medium</td></tr>
+      </table>
+    </section>
+    <section>
+      <h2>Review Lanes</h2>
+      <table>
+        <tr><th>Lane</th><th>Focus</th><th>Findings</th></tr>
+        <tr><td>Security</td><td>No new secrets or network calls</td><td>Pending</td></tr>
+        <tr><td>Frontend</td><td>Select UX and responsive layout</td><td>Pending</td></tr>
+        <tr><td>Backend</td><td>Config defaults, prompt composition</td><td>Pending</td></tr>
+        <tr><td>DB / Storage</td><td>Config compatibility</td><td>Pending</td></tr>
+        <tr><td>QA</td><td>Go test and frontend build</td><td>Pending</td></tr>
+      </table>
+    </section>
+    <section>
+      <h2>Traceability</h2>
+      <table>
+        <tr><th>Claim</th><th>Requirement</th><th>Specification</th><th>Test / Review</th></tr>
+        <tr><td>Genre selection</td><td>FR-1, FR-7, FR-8</td><td>UI / Screens</td><td>Manual UI, frontend build</td></tr>
+        <tr><td>Prompt reflection</td><td>FR-5</td><td>BuildPrompt</td><td>Go test</td></tr>
+        <tr><td>Persistence</td><td>FR-2, FR-3, FR-4</td><td>Persistence</td><td>Load/save config review</td></tr>
+      </table>
+    </section>
+    <section>
+      <h2>Open Questions / Go-No-Go</h2>
+      <table>
+        <tr><th>Question</th><th>Needed Before</th><th>Decision Condition</th></tr>
+        <tr><td>Immediate regeneration required?</td><td>Implementation</td><td>No-Go if required for MVP</td></tr>
+        <tr><td>Console placement acceptable?</td><td>Implementation</td><td>Go unless reviewer requests Settings-only</td></tr>
+      </table>
+    </section>
+  </main>
+</body>
+</html>

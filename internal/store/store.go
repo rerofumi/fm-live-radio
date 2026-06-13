@@ -18,6 +18,31 @@ const (
 	historyMaxItems = 500
 )
 
+// StableAudio3AllowedGenres is the set of genres accepted for Stable Audio 3
+// BGM generation. Values are stored verbatim in config.json.
+var StableAudio3AllowedGenres = []string{
+	"chill lo-fi",
+	"smooth jazz",
+	"minimal electronica",
+	"ambient music",
+}
+
+// StableAudio3DefaultGenre is the fallback used when the configured value is
+// missing, empty, or not in StableAudio3AllowedGenres.
+const StableAudio3DefaultGenre = "chill lo-fi"
+
+// NormalizeStableAudio3Genre returns the input if it is one of the allowed
+// genres; otherwise it returns the default genre. Whitespace is trimmed.
+func NormalizeStableAudio3Genre(g string) string {
+	v := strings.TrimSpace(g)
+	for _, allowed := range StableAudio3AllowedGenres {
+		if strings.EqualFold(v, allowed) {
+			return allowed
+		}
+	}
+	return StableAudio3DefaultGenre
+}
+
 type Store struct {
 	baseDir string
 }
@@ -49,14 +74,9 @@ func DefaultAssetBaseDir() string {
 func DefaultConfig() domain.AppConfig {
 	base := DefaultAssetBaseDir()
 	return domain.AppConfig{
-		BGMRootPath:   "",
-		SelectedGenre: "",
-		RSSUrls:       []string{},
-		GeminiAPIKey:  "",
-		BGMSource:     domain.BGMSourceFiles,
-		TTSSource:     domain.TTSSourceGemini,
-		BGMVolume:     0.8,
-		TalkVolume:    1.0,
+		RSSUrls:    []string{},
+		BGMVolume:  0.8,
+		TalkVolume: 1.0,
 		Talk: domain.TalkConfig{
 			Enabled:           true,
 			CycleBgmCount:     3,
@@ -70,28 +90,22 @@ func DefaultConfig() domain.AppConfig {
 			APIKey:  "",
 			Model:   "gpt-4o-mini",
 		},
-		TTS: domain.TTSConfig{
-			Enabled: true,
-			Model:   "gemini-2.5-flash-preview-tts",
-			Voice:   "Kore",
-		},
 		LocalInference: domain.LocalInferenceConfig{
 			MaxWorkers:        1,
 			ExecutionProvider: "auto",
 			DeviceID:          0,
 		},
 		StableAudio3: domain.StableAudio3Config{
-			Enabled:    true,
 			ModelDir:   filepath.Join(base, "model", "sa3-sm-music"),
 			OutputDir:  filepath.Join(base, "generate_music"),
 			PromptBase: "instrumental background music for a radio show, seamless loop feel, no vocals",
+			Genre:      StableAudio3DefaultGenre,
 			Seconds:    30,
 			Steps:      8,
 			SeedMode:   "random",
 			CacheLimit: 20,
 		},
 		Irodori: domain.IrodoriConfig{
-			Enabled:       true,
 			ModelDir:      filepath.Join(base, "model", "irodori-v3"),
 			NarratorDir:   filepath.Join(base, "narrator"),
 			Seconds:       -1,
@@ -177,12 +191,6 @@ func applyConfigDefaults(cfg domain.AppConfig) domain.AppConfig {
 	if cfg.RSSUrls == nil {
 		cfg.RSSUrls = []string{}
 	}
-	if cfg.BGMSource == "" {
-		cfg.BGMSource = def.BGMSource
-	}
-	if cfg.TTSSource == "" {
-		cfg.TTSSource = def.TTSSource
-	}
 	if cfg.Talk.CycleBgmCount == 0 {
 		cfg.Talk.CycleBgmCount = def.Talk.CycleBgmCount
 	}
@@ -203,17 +211,6 @@ func applyConfigDefaults(cfg domain.AppConfig) domain.AppConfig {
 		cfg.TalkVolume = def.TalkVolume
 	}
 
-	// default TTS
-	if cfg.TTS.Enabled == false {
-		// If field is missing in older configs, Enabled will be false; default to enabled.
-		cfg.TTS.Enabled = def.TTS.Enabled
-	}
-	if strings.TrimSpace(cfg.TTS.Model) == "" {
-		cfg.TTS.Model = def.TTS.Model
-	}
-	if strings.TrimSpace(cfg.TTS.Voice) == "" {
-		cfg.TTS.Voice = def.TTS.Voice
-	}
 	if cfg.LocalInference.MaxWorkers <= 0 {
 		cfg.LocalInference.MaxWorkers = def.LocalInference.MaxWorkers
 	}
@@ -237,6 +234,7 @@ func applyConfigDefaults(cfg domain.AppConfig) domain.AppConfig {
 	if strings.TrimSpace(cfg.StableAudio3.PromptBase) == "" {
 		cfg.StableAudio3.PromptBase = def.StableAudio3.PromptBase
 	}
+	cfg.StableAudio3.Genre = NormalizeStableAudio3Genre(cfg.StableAudio3.Genre)
 	if cfg.StableAudio3.Seconds <= 0 {
 		cfg.StableAudio3.Seconds = def.StableAudio3.Seconds
 	}

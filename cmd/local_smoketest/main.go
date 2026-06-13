@@ -11,7 +11,6 @@ import (
 	"strconv"
 	"time"
 
-	"fm-live-radio/internal/domain"
 	"fm-live-radio/internal/generation"
 	"fm-live-radio/internal/localtts"
 	"fm-live-radio/internal/musicgen"
@@ -51,7 +50,7 @@ func main() {
 	musicStart := time.Now()
 	musicCtx, musicCancel := context.WithTimeout(context.Background(), 12*time.Minute)
 	defer musicCancel()
-	musicRes, err := musicSvc.Generate(musicCtx, cfg, "ambient")
+	musicRes, err := musicSvc.Generate(musicCtx, cfg)
 	if err != nil {
 		fail("stable audio generate", err)
 	}
@@ -66,7 +65,7 @@ func main() {
 	ttsStart := time.Now()
 	ttsCtx, ttsCancel := context.WithTimeout(context.Background(), 8*time.Minute)
 	defer ttsCancel()
-	wavBytes, err := ttsSvc.SynthesizeWav(ttsCtx, withIrodori(cfg), "こんにちは。こちらは FM Live Radio のローカル音声生成テストです。")
+	wavBytes, err := ttsSvc.SynthesizeWav(ttsCtx, cfg, "こんにちは。こちらは FM Live Radio のローカル音声生成テストです。")
 	if err != nil {
 		fail("irodori synthesize", err)
 	}
@@ -101,10 +100,6 @@ func resolveEnvInt(key string, fallback int) int {
 	return fallback
 }
 
-func withIrodori(cfg domain.AppConfig) domain.AppConfig {
-	cfg.TTSSource = domain.TTSSourceIrodori
-	return cfg
-}
 
 func inspectWav(path string) (wavStats, error) {
 	data, err := os.ReadFile(path)

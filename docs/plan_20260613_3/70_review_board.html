@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Genre Descriptor Prompt Review Board</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 24px; color: #1f2937; background: #f8fafc; }
+    main { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+    section { border: 1px solid #d1d5db; border-radius: 8px; padding: 16px; background: #fff; }
+    h1, h2 { margin-top: 0; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #d1d5db; padding: 8px; text-align: left; vertical-align: top; }
+    th { background: #f1f5f9; }
+  </style>
+</head>
+<body>
+  <h1>Genre Descriptor Prompt Review Board</h1>
+  <main>
+    <section>
+      <h2>Decision Map</h2>
+      <table>
+        <tr><th>Decision</th><th>Options</th><th>Status</th></tr>
+        <tr><td>Prompt input</td><td>genre name / descriptor</td><td>Proposed: descriptor</td></tr>
+        <tr><td>Persistence</td><td>save descriptor / save genre only</td><td>Proposed: save genre only</td></tr>
+        <tr><td>UI</td><td>change UI / keep UI</td><td>Proposed: keep UI</td></tr>
+      </table>
+    </section>
+    <section>
+      <h2>Impact Map</h2>
+      <table>
+        <tr><th>Area</th><th>Impact</th><th>Owner</th></tr>
+        <tr><td>Prompt</td><td>Genre descriptor replaces raw genre name in prompt parts</td><td>Go</td></tr>
+        <tr><td>Config</td><td>No schema change</td><td>Go</td></tr>
+        <tr><td>UI</td><td>No visible control changes</td><td>React</td></tr>
+        <tr><td>Docs</td><td>Current docs describe descriptor expansion</td><td>Docs</td></tr>
+      </table>
+    </section>
+    <section>
+      <h2>Risk Board</h2>
+      <table>
+        <tr><th>Risk</th><th>Mitigation</th><th>Residual Risk</th></tr>
+        <tr><td>Descriptor too weak</td><td>Include instrumentation, rhythm, texture, mood</td><td>Medium</td></tr>
+        <tr><td>Prompt too long</td><td>Use compact 1-2 sentence descriptors</td><td>Low</td></tr>
+        <tr><td>Test fragility</td><td>Assert key phrases, not full prompt text where possible</td><td>Low</td></tr>
+      </table>
+    </section>
+    <section>
+      <h2>Review Lanes</h2>
+      <table>
+        <tr><th>Lane</th><th>Focus</th><th>Findings</th></tr>
+        <tr><td>Security</td><td>No new secrets or external calls</td><td>Pending</td></tr>
+        <tr><td>Frontend</td><td>No UI regression</td><td>Pending</td></tr>
+        <tr><td>Backend</td><td>Prompt construction and fallback</td><td>Pending</td></tr>
+        <tr><td>QA</td><td>Prompt unit tests and build</td><td>Pending</td></tr>
+      </table>
+    </section>
+    <section>
+      <h2>Traceability</h2>
+      <table>
+        <tr><th>Claim</th><th>Requirement</th><th>Specification</th><th>Test / Review</th></tr>
+        <tr><td>Genre差を強める</td><td>FR-3, FR-4</td><td>GenrePromptDescription</td><td>Go test</td></tr>
+        <tr><td>互換性維持</td><td>FR-2, FR-7</td><td>Data Model, UI</td><td>Frontend build</td></tr>
+      </table>
+    </section>
+    <section>
+      <h2>Open Questions / Go-No-Go</h2>
+      <table>
+        <tr><th>Question</th><th>Needed Before</th><th>Decision Condition</th></tr>
+        <tr><td>Descriptor text acceptable?</td><td>Implementation</td><td>Go if compact descriptors are acceptable</td></tr>
+      </table>
+    </section>
+  </main>
+</body>
+</html>

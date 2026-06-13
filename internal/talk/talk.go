@@ -13,7 +13,6 @@ import (
 	"fm-live-radio/internal/llm"
 	"fm-live-radio/internal/localtts"
 	"fm-live-radio/internal/rss"
-	"fm-live-radio/internal/tts"
 )
 
 var ErrDisabled = errors.New("talk disabled")
@@ -30,7 +29,6 @@ type Result struct {
 type Service struct {
 	picker *rss.Picker
 	llm    *llm.OpenAICompat
-	gemini *tts.GeminiClient
 	local  *localtts.Service
 
 	tempDir string
@@ -40,7 +38,6 @@ func New(tempDir string) *Service {
 	return &Service{
 		picker:  rss.NewPicker(),
 		llm:     &llm.OpenAICompat{},
-		gemini:  &tts.GeminiClient{},
 		local:   localtts.New(),
 		tempDir: tempDir,
 	}
@@ -74,8 +71,7 @@ func (s *Service) Generate(ctx context.Context, cfg domain.AppConfig, used map[s
 		return Result{}, ErrEmptyScript
 	}
 
-	provider := s.providerForConfig(cfg)
-	wav, err := provider.SynthesizeWav(ctx, script)
+	wav, err := s.local.SynthesizeWav(ctx, cfg, script)
 	if err != nil {
 		return Result{}, err
 	}
@@ -91,27 +87,6 @@ func (s *Service) Generate(ctx context.Context, cfg domain.AppConfig, used map[s
 		ArticleTitle: art.Title,
 		FeedURL:      art.FeedURL,
 	}, nil
-}
-
-func (s *Service) providerForConfig(cfg domain.AppConfig) tts.Provider {
-	if cfg.TTSSource == domain.TTSSourceIrodori {
-		return irodoriProvider{svc: s.local, cfg: cfg}
-	}
-	s.gemini.APIKey = cfg.GeminiAPIKey
-	if cfg.TTS.Enabled {
-		s.gemini.Model = cfg.TTS.Model
-		s.gemini.Voice = cfg.TTS.Voice
-	}
-	return s.gemini
-}
-
-type irodoriProvider struct {
-	svc *localtts.Service
-	cfg domain.AppConfig
-}
-
-func (p irodoriProvider) SynthesizeWav(ctx context.Context, text string) ([]byte, error) {
-	return p.svc.SynthesizeWav(ctx, p.cfg, text)
 }
 
 func buildUserPrompt(a rss.Article) string {

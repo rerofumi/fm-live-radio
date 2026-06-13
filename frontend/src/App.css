@@ -394,6 +394,22 @@
   color: var(--muted);
 }
 
+.genreSelect {
+  font-size: 13px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  min-width: 180px;
+}
+
+.genreSelect:focus {
+  outline: 2px solid rgba(79, 70, 229, 0.35);
+  outline-offset: 1px;
+}
+
 .mixer {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -513,4 +529,30 @@
   .chip.isActive .dot {
     animation: none;
   }
+}
+
+.settings-details {
+  margin-top: 16px;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+
+.settings-details summary {
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  color: var(--text);
+  margin-bottom: 12px;
+  user-select: none;
+  border-left: 3px solid var(--accent);
+  padding-left: 8px;
+}
+
+.settings-section-title {
+  font-size: 14px;
+  font-weight: 700;
+  margin: 0 0 12px 0;
+  color: var(--text);
+  border-left: 3px solid var(--accent);
+  padding-left: 8px;
 }

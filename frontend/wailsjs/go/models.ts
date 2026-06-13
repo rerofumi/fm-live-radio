@@ -1,7 +1,6 @@
 export namespace domain {
 	
 	export class IrodoriConfig {
-	    enabled: boolean;
 	    modelDir: string;
 	    narratorDir: string;
 	    refWav: string;
@@ -20,7 +19,6 @@ export namespace domain {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.enabled = source["enabled"];
 	        this.modelDir = source["modelDir"];
 	        this.narratorDir = source["narratorDir"];
 	        this.refWav = source["refWav"];
@@ -35,10 +33,10 @@ export namespace domain {
 	    }
 	}
 	export class StableAudio3Config {
-	    enabled: boolean;
 	    modelDir: string;
 	    outputDir: string;
 	    promptBase: string;
+	    genre: string;
 	    seconds: number;
 	    steps: number;
 	    seedMode: string;
@@ -51,10 +49,10 @@ export namespace domain {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.enabled = source["enabled"];
 	        this.modelDir = source["modelDir"];
 	        this.outputDir = source["outputDir"];
 	        this.promptBase = source["promptBase"];
+	        this.genre = source["genre"];
 	        this.seconds = source["seconds"];
 	        this.steps = source["steps"];
 	        this.seedMode = source["seedMode"];
@@ -78,22 +76,6 @@ export namespace domain {
 	        this.maxWorkers = source["maxWorkers"];
 	        this.executionProvider = source["executionProvider"];
 	        this.deviceId = source["deviceId"];
-	    }
-	}
-	export class TTSConfig {
-	    enabled: boolean;
-	    model: string;
-	    voice: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new TTSConfig(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.enabled = source["enabled"];
-	        this.model = source["model"];
-	        this.voice = source["voice"];
 	    }
 	}
 	export class LLMConfig {
@@ -135,17 +117,11 @@ export namespace domain {
 	    }
 	}
 	export class AppConfig {
-	    bgmRootPath: string;
-	    selectedGenre: string;
 	    rssUrls: string[];
-	    geminiApiKey: string;
-	    bgmSource: string;
-	    ttsSource: string;
 	    bgmVolume: number;
 	    talkVolume: number;
 	    talk: TalkConfig;
 	    llm: LLMConfig;
-	    tts: TTSConfig;
 	    localInference: LocalInferenceConfig;
 	    stableAudio3: StableAudio3Config;
 	    irodori: IrodoriConfig;
@@ -156,17 +132,11 @@ export namespace domain {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.bgmRootPath = source["bgmRootPath"];
-	        this.selectedGenre = source["selectedGenre"];
 	        this.rssUrls = source["rssUrls"];
-	        this.geminiApiKey = source["geminiApiKey"];
-	        this.bgmSource = source["bgmSource"];
-	        this.ttsSource = source["ttsSource"];
 	        this.bgmVolume = source["bgmVolume"];
 	        this.talkVolume = source["talkVolume"];
 	        this.talk = this.convertValues(source["talk"], TalkConfig);
 	        this.llm = this.convertValues(source["llm"], LLMConfig);
-	        this.tts = this.convertValues(source["tts"], TTSConfig);
 	        this.localInference = this.convertValues(source["localInference"], LocalInferenceConfig);
 	        this.stableAudio3 = this.convertValues(source["stableAudio3"], StableAudio3Config);
 	        this.irodori = this.convertValues(source["irodori"], IrodoriConfig);
@@ -214,7 +184,7 @@ export namespace domain {
 	
 	
 	export class NextItemRequest {
-	    selectedGenre: string;
+	
 	
 	    static createFrom(source: any = {}) {
 	        return new NextItemRequest(source);
@@ -222,7 +192,7 @@ export namespace domain {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.selectedGenre = source["selectedGenre"];
+	
 	    }
 	}
 	export class PlayableSource {
@@ -299,7 +269,6 @@ export namespace domain {
 	}
 	
 	export class SkipRequest {
-	    selectedGenre: string;
 	    currentKind: string;
 	
 	    static createFrom(source: any = {}) {
@@ -308,11 +277,9 @@ export namespace domain {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.selectedGenre = source["selectedGenre"];
 	        this.currentKind = source["currentKind"];
 	    }
 	}
-	
 	
 
 }

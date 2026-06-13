@@ -19,6 +19,7 @@ type Result struct {
 	Title     string
 	Prompt    string
 	Seed      uint32
+	Genre     string
 }
 
 type Service struct{}
@@ -27,7 +28,7 @@ func New() *Service {
 	return &Service{}
 }
 
-func (s *Service) Generate(ctx context.Context, cfg domain.AppConfig, genre string) (Result, error) {
+func (s *Service) Generate(ctx context.Context, cfg domain.AppConfig) (Result, error) {
 	if strings.TrimSpace(cfg.StableAudio3.ModelDir) == "" || strings.TrimSpace(cfg.StableAudio3.OutputDir) == "" {
 		return Result{}, generation.ErrProviderNotConfigured
 	}
@@ -41,7 +42,7 @@ func (s *Service) Generate(ctx context.Context, cfg domain.AppConfig, genre stri
 		return Result{}, err
 	}
 
-	prompt := BuildPrompt(cfg, genre)
+	prompt := BuildPrompt(cfg)
 	seed := resolveMusicSeed(cfg.StableAudio3.SeedMode, cfg.StableAudio3.FixedSeed)
 	outPath := filepath.Join(cfg.StableAudio3.OutputDir, fmt.Sprintf("music_%d.wav", time.Now().UnixNano()))
 
@@ -75,9 +76,10 @@ func (s *Service) Generate(ctx context.Context, cfg domain.AppConfig, genre stri
 	_ = TrimCache(cfg.StableAudio3.OutputDir, cfg.StableAudio3.CacheLimit, outPath)
 	return Result{
 		AudioPath: outPath,
-		Title:     fmt.Sprintf("Stable Audio 3 - %s", genre),
+		Title:     "Stable Audio 3",
 		Prompt:    prompt,
 		Seed:      seed,
+		Genre:     SelectedGenre(cfg),
 	}, nil
 }
 
@@ -89,6 +91,7 @@ func (s *Service) Fallback(cfg domain.AppConfig) (Result, error) {
 	return Result{
 		AudioPath: path,
 		Title:     filepath.Base(path),
+		Genre:     SelectedGenre(cfg),
 	}, nil
 }
 

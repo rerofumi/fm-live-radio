@@ -22,10 +22,10 @@ export function SaveConfig(arg1) {
   return window['go']['main']['App']['SaveConfig'](arg1);
 }
 
-export function ScanGenres() {
-  return window['go']['main']['App']['ScanGenres']();
-}
-
 export function SkipCurrent(arg1) {
   return window['go']['main']['App']['SkipCurrent'](arg1);
+}
+
+export function UpdateStableAudio3Genre(arg1) {
+  return window['go']['main']['App']['UpdateStableAudio3Genre'](arg1);
 }

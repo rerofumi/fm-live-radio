@@ -6,7 +6,7 @@
 
 ## 目的
 
-`fm-live-radio` は、ローカルデスクトップ上で BGM と AI 生成ニューストークを交互に再生する「AI ローカルラジオ」アプリである。ユーザーは音楽ソース、ニュース RSS、LLM、TTS、ローカル推論の設定を行い、連続再生されるラジオ風の体験を得られる必要がある。
+`fm-live-radio` は、ローカルデスクトップ上で BGM と AI 生成ニューストークを交互に再生する「AI ローカルラジオ」アプリである。ユーザーはニュース RSS、LLM、ローカル推論の設定を行い、連続再生されるラジオ風の体験を得られる必要がある。
 
 ## 対象環境
 
@@ -14,8 +14,7 @@
 - Wails + Go + React によるデスクトップアプリとして動作する。
 - 開発・検証コマンドは `mise` 経由で実行できる必要がある。
 - OpenAI 互換 Chat Completions API を利用できる環境を前提とする。
-- Gemini TTS を使う場合は Gemini API key を必要とする。
-- Stable Audio 3 または IrodoriTTS v3 を使う場合は、対応するローカルモデルと ONNX Runtime が利用可能である必要がある。
+- Stable Audio 3 および IrodoriTTS v3 を使うため、対応するローカルモデルと ONNX Runtime が利用可能である必要がある。
 
 ## 機能要件
 
@@ -32,19 +31,17 @@
 
 ### BGM
 
-- BGM source として `files` と `stable_audio_3` を選択できる。
-- `files` では、ユーザー指定の BGM root 配下にあるジャンルディレクトリを一覧化できる。
-- `files` では、選択ジャンル配下の `.mp3`、`.wav`、`.m4a` を再生対象にする。
-- `files` では、直前と同じ曲の即時繰り返しを可能な範囲で避ける。
-- `stable_audio_3` では、Stable Audio 3 モデルを使って BGM WAV を生成する。
-- `stable_audio_3` では、モデルディレクトリ、出力ディレクトリ、prompt base、秒数、steps、seed mode、fixed seed、cache limit を設定できる。
+- BGM は Stable Audio 3 モデルを使って BGM WAV を生成する。
+- モデルディレクトリ、出力ディレクトリ、prompt base、ジャンル、秒数、steps、seed mode、fixed seed、cache limit を設定できる。
+- ジャンルは固定の 4 値から選択する。`chill lo-fi`, `smooth jazz`, `minimal electronica`, `ambient music`。
+- 既定ジャンルは `chill lo-fi`。`config.json` の `stableAudio3.genre` が空または未対応値の場合は既定値へ正規化される。
+- Stable Audio 3 に渡す prompt では、選択ジャンル名だけでなく、楽器、音色、リズム、雰囲気を含むジャンル説明文へ展開される必要がある。
 - Stable Audio 3 の生成に失敗した場合、利用可能な生成済み WAV があれば fallback として使える必要がある。
 - 生成済み BGM cache は設定された上限に基づいて整理される必要がある。
 
 ### Talk
 
-- TTS source として `gemini` と `irodori` を選択できる。
-- Talk は RSS 記事選択、LLM 原稿生成、TTS 合成の順で生成される。
+- Talk は RSS 記事選択、LLM 原稿生成、IrodoriTTS による音声合成の順で生成される。
 - RSS URL は複数設定できる。
 - 過去に利用した記事 URL は履歴に保存し、再利用を避ける。
 - RSS item の本文が不足する場合、記事ページから本文抽出を試みる。
@@ -52,12 +49,6 @@
 - LLM base URL、API key、model を設定できる。
 - Talk 原稿はラジオ DJ 風の短いニュース紹介として生成される。
 - Talk 生成結果は一時 WAV ファイルとして保存され、再生できる必要がある。
-
-### Gemini TTS
-
-- Gemini TTS を利用するには Gemini API key を設定できる必要がある。
-- Gemini TTS model と voice を設定できる必要がある。
-- Gemini TTS の audio response は WAV に変換して再生できる必要がある。
 
 ### IrodoriTTS v3
 
@@ -93,14 +84,12 @@
 - 再生用 audio URL は token 付きで発行し、一定時間後に無効化される。
 - API key はログに積極的に出力しない。
 - 生成処理は UI 操作を長時間ブロックしないよう、Talk と Music の prefetch を利用する。
-- BGM ファイル再生、Gemini TTS、ローカル生成のいずれかを組み合わせても基本再生フローが維持される。
+- ローカル生成による BGM / Talk の基本再生フローが維持される。
 
 ## 制約
 
 - ローカル生成モデル、GPU 版 ONNX Runtime、CUDA/cuDNN 関連 DLL はリポジトリ管理対象外である。
-- `files` BGM では BGM root と genre が未設定の場合、再生できない。
 - Talk は RSS URL が空の場合、生成できない。
-- Gemini TTS は API key が空の場合、生成できない。
 - IrodoriTTS は必要な model asset が不足している場合、生成できない。
 - RSS 記事本文抽出はサイト構造に依存するため、十分な本文を取得できない場合がある。
 - ORT はプロセス内で一度初期化されるため、実行中の provider 切り替えには対応しない。
@@ -119,8 +108,7 @@
 - `mise x -- go test ./...` が実行可能である。
 - `mise x -- npm --prefix frontend run build` が実行可能である。
 - `mise run build` が実行可能である。
-- Settings から BGM source、TTS source、RSS、LLM、Gemini、Stable Audio 3、Irodori、ORT provider 関連設定を保存できる。
-- `files + gemini` の互換経路で、BGM と Talk を交互に再生できる。
-- `stable_audio_3` を選択した場合、設定済みモデルと ORT があれば BGM を生成して再生できる。
-- `irodori` を選択した場合、設定済みモデルと ORT があれば Talk WAV を生成して再生できる。
+- Settings から RSS、LLM、Stable Audio 3、Irodori、ORT provider 関連設定を保存できる。
+- `stable_audio_3` 設定済みモデルと ORT があれば BGM を生成して再生できる。
+- `irodori` 設定済みモデルと ORT があれば Talk WAV を生成して再生できる。
 - `auto` provider で CUDA が利用できない場合、CPU fallback の警告が UI status に反映される。

@@ -2,7 +2,7 @@ import {useEffect, useMemo, useRef, useState} from 'react';
 import './App.css';
 import Visualizer from './Visualizer';
 
-import {GetNextItem, GetStatus, LoadConfig, PrefetchTalk, SaveConfig, ScanGenres, SkipCurrent} from "../wailsjs/go/main/App";
+import {GetNextItem, GetStatus, LoadConfig, PrefetchTalk, SaveConfig, SkipCurrent, UpdateStableAudio3Genre} from "../wailsjs/go/main/App";
 
 type PlayableKind = "bgm" | "talk" | "silence";
 
@@ -15,18 +15,31 @@ type PlayableItem = {
   durationHintMs?: number;
   source?: {
     provider?: string;
+    genre?: string;
     prompt?: string;
     modelDir?: string;
   };
 };
 
+const SA3_GENRES: ReadonlyArray<string> = [
+  "chill lo-fi",
+  "smooth jazz",
+  "minimal electronica",
+  "ambient music",
+];
+
+const SA3_DEFAULT_GENRE = "chill lo-fi";
+
+function normalizeSa3Genre(g: string | undefined | null): string {
+  const v = (g ?? "").trim().toLowerCase();
+  for (const allowed of SA3_GENRES) {
+    if (v === allowed.toLowerCase()) return allowed;
+  }
+  return SA3_DEFAULT_GENRE;
+}
+
 type AppConfig = {
-  bgmRootPath: string;
-  selectedGenre: string;
   rssUrls: string[];
-  geminiApiKey: string;
-  bgmSource: "files" | "stable_audio_3";
-  ttsSource: "gemini" | "irodori";
 
   bgmVolume: number;
   talkVolume: number;
@@ -44,11 +57,6 @@ type AppConfig = {
     apiKey: string;
     model: string;
   };
-  tts: {
-    enabled: boolean;
-    model: string;
-    voice: string;
-  };
   localInference: {
     ortLibraryPath: string;
     maxWorkers: number;
@@ -59,6 +67,7 @@ type AppConfig = {
     modelDir: string;
     outputDir: string;
     promptBase: string;
+    genre: string;
     seconds: number;
     steps: number;
     seedMode: string;
@@ -85,8 +94,6 @@ function App() {
   const silenceTimerRef = useRef<number | null>(null);
 
   const [cfg, setCfg] = useState<AppConfig | null>(null);
-  const [genres, setGenres] = useState<string[]>([]);
-  const [selectedGenre, setSelectedGenre] = useState<string>("");
 
   const [isPlaying, setIsPlaying] = useState(false);
   const isPlayingRef = useRef(false);
@@ -104,14 +111,13 @@ function App() {
   const [elapsedSec, setElapsedSec] = useState(0);
   const [durationSec, setDurationSec] = useState<number | null>(null);
 
-  const req = useMemo(() => ({ selectedGenre }), [selectedGenre]);
+  const req = useMemo(() => ({}), []);
 
   useEffect(() => {
     (async () => {
       try {
         const loaded = (await LoadConfig()) as unknown as AppConfig;
         setCfg(loaded);
-        setSelectedGenre(loaded.selectedGenre ?? "");
         setBgmVolume(typeof loaded.bgmVolume === 'number' ? loaded.bgmVolume : 0.8);
         setTalkVolume(typeof loaded.talkVolume === 'number' ? loaded.talkVolume : 1.0);
       } catch (e: any) {
@@ -119,21 +125,6 @@ function App() {
       }
     })();
   }, []);
-
-  useEffect(() => {
-    if (!cfg?.bgmRootPath) {
-      setGenres([]);
-      return;
-    }
-    (async () => {
-      try {
-        const g = await ScanGenres();
-        setGenres(g);
-      } catch (e: any) {
-        setGenres([]);
-      }
-    })();
-  }, [cfg?.bgmRootPath]);
 
   function applyVolumeFor(kind: PlayableKind | undefined) {
     if (!audioRef.current) return;
@@ -242,7 +233,6 @@ function App() {
 
   async function persistConfig(next: AppConfig) {
     setCfg(next);
-    setSelectedGenre(next.selectedGenre);
     setBgmVolume(next.bgmVolume);
     setTalkVolume(next.talkVolume);
     await SaveConfig(next as any);
@@ -352,7 +342,6 @@ function App() {
 
     try {
       const skipReq = {
-        selectedGenre,
         // Send current kind so backend can apply correct skip semantics.
         currentKind: (current?.kind ?? "bgm") as PlayableKind,
       };
@@ -383,13 +372,21 @@ function App() {
     ? (current.kind === 'talk' ? (current.topicTitle ?? current.title) : current.title)
     : '未再生';
 
-  const nowSub = current
-    ? (current.kind === 'talk'
-      ? `ニューストーク${current.source?.provider ? ` · ${current.source.provider}` : ''}`
-      : current.kind === 'bgm'
-        ? `BGM${current.source?.provider ? ` · ${current.source.provider}` : ''}`
-        : '間（無音）')
-    : '再生を開始してください';
+  const nowSub = (() => {
+    if (!current) return '再生を開始してください';
+    if (current.kind === 'talk') {
+      const parts = ['ニューストーク'];
+      if (current.source?.provider) parts.push(current.source.provider);
+      return parts.join(' · ');
+    }
+    if (current.kind === 'bgm') {
+      const parts = ['BGM'];
+      if (current.source?.provider) parts.push(current.source.provider);
+      if (current.source?.genre) parts.push(current.source.genre);
+      return parts.join(' · ');
+    }
+    return '間（無音）';
+  })();
 
   const currentLevel = current?.kind === 'talk' ? talkVolume : bgmVolume;
 
@@ -469,25 +466,7 @@ function App() {
             <button className="btn" onClick={onSkip} disabled={!isPlaying}>
               Skip
             </button>
-            <div className="genre">
-              <label>Genre</label>
-              <select
-                value={selectedGenre}
-                onChange={(e) => {
-                  const g = e.target.value;
-                  setSelectedGenre(g);
-                  if (cfg) {
-                    void persistConfig({...cfg, selectedGenre: g});
-                  }
-                }}
-                disabled={!cfg}
-              >
-                <option value="">未選択</option>
-                {genres.map((g) => (
-                  <option key={g} value={g}>{g}</option>
-                ))}
-              </select>
-            </div>
+
           </div>
 
           <div className="mixer">
@@ -530,6 +509,34 @@ function App() {
             </div>
           </div>
 
+          <div className="genre">
+            <label htmlFor="sa3GenreConsole">Genre</label>
+            <select
+              id="sa3GenreConsole"
+              className="genreSelect"
+              value={normalizeSa3Genre(cfg?.stableAudio3?.genre)}
+              onChange={(e) => {
+                const next = normalizeSa3Genre(e.target.value);
+                if (!cfg) return;
+                const nextCfg: AppConfig = {
+                  ...cfg,
+                  stableAudio3: {...cfg.stableAudio3, genre: next},
+                };
+                setCfg(nextCfg);
+                // Use the dedicated binding so currently playing / prefetched
+                // BGM is not interrupted (FR-10). The backend also persists
+                // the new value to config.json.
+                UpdateStableAudio3Genre(next).catch((e: any) => {
+                  setErrorText(`ジャンル保存に失敗: ${e?.message ?? String(e)}`);
+                });
+              }}
+            >
+              {SA3_GENRES.map((g) => (
+                <option key={g} value={g}>{g}</option>
+              ))}
+            </select>
+          </div>
+
           <div className="hint">
             Talk はBGM再生中に先読み生成されます（設定により変動）。音は止まらず流れ続けます。
           </div>
@@ -565,39 +572,8 @@ function App() {
                 <button className="btn" onClick={() => setShowSettings(false)}>Close</button>
               </div>
 
+              <h3 className="settings-section-title">アプリ機能</h3>
               <div className="modalGrid">
-                <label>BGM Root Path</label>
-                <input
-                  value={cfg.bgmRootPath}
-                  onChange={(e) => setCfg({...cfg, bgmRootPath: e.target.value})}
-                  placeholder="E:/Music/BGM"
-                />
-
-                <label>BGM Source</label>
-                <select
-                  value={cfg.bgmSource}
-                  onChange={(e) => setCfg({...cfg, bgmSource: e.target.value as AppConfig["bgmSource"]})}
-                >
-                  <option value="files">Files</option>
-                  <option value="stable_audio_3">Stable Audio 3</option>
-                </select>
-
-                <label>TTS Source</label>
-                <select
-                  value={cfg.ttsSource}
-                  onChange={(e) => setCfg({...cfg, ttsSource: e.target.value as AppConfig["ttsSource"]})}
-                >
-                  <option value="gemini">Gemini</option>
-                  <option value="irodori">IrodoriTTS</option>
-                </select>
-
-                <label>Selected Genre</label>
-                <input
-                  value={cfg.selectedGenre}
-                  onChange={(e) => setCfg({...cfg, selectedGenre: e.target.value})}
-                  placeholder="Lo-Fi"
-                />
-
                 <label>曲数 (BGM→Talk)</label>
                 <input
                   type="number"
@@ -608,6 +584,30 @@ function App() {
                   onChange={(e) => {
                     const n = parseInt(e.target.value, 10);
                     setCfg({...cfg, talk: {...cfg.talk, cycleBgmCount: Number.isFinite(n) && n > 0 ? n : 3}});
+                  }}
+                />
+
+                <label>Silence Gap Min (ms)</label>
+                <input
+                  type="number"
+                  min={0}
+                  step={100}
+                  value={cfg.talk?.silenceGapMinMs ?? 1000}
+                  onChange={(e) => {
+                    const n = parseInt(e.target.value, 10);
+                    setCfg({...cfg, talk: {...cfg.talk, silenceGapMinMs: Number.isFinite(n) && n >= 0 ? n : 1000}});
+                  }}
+                />
+
+                <label>Silence Gap Max (ms)</label>
+                <input
+                  type="number"
+                  min={0}
+                  step={100}
+                  value={cfg.talk?.silenceGapMaxMs ?? 3000}
+                  onChange={(e) => {
+                    const n = parseInt(e.target.value, 10);
+                    setCfg({...cfg, talk: {...cfg.talk, silenceGapMaxMs: Number.isFinite(n) && n >= 0 ? n : 3000}});
                   }}
                 />
 
@@ -631,129 +631,9 @@ function App() {
                   onChange={(e) => setCfg({...cfg, talkVolume: parseFloat(e.target.value)})}
                 />
 
-                <label>Gemini API Key</label>
-                <input
-                  value={cfg.geminiApiKey}
-                  onChange={(e) => setCfg({...cfg, geminiApiKey: e.target.value})}
-                  placeholder="AIza..."
-                />
-
-                <label>TTS Model</label>
-                <input
-                  value={cfg.tts?.model ?? ""}
-                  onChange={(e) => setCfg({...cfg, tts: {...cfg.tts, model: e.target.value}})}
-                  placeholder="gemini-2.5-flash-preview-tts"
-                />
-
-                <label>TTS Voice</label>
-                <input
-                  value={cfg.tts?.voice ?? ""}
-                  onChange={(e) => setCfg({...cfg, tts: {...cfg.tts, voice: e.target.value}})}
-                  placeholder="Kore"
-                />
-
-                <label>ORT DLL Path</label>
-                <input
-                  value={cfg.localInference?.ortLibraryPath ?? ""}
-                  onChange={(e) => setCfg({...cfg, localInference: {...cfg.localInference, ortLibraryPath: e.target.value}})}
-                  placeholder="C:/path/to/onnxruntime.dll"
-                />
-
-                <label>Local Inference Provider</label>
-                <select
-                  value={cfg.localInference?.executionProvider ?? "auto"}
-                  onChange={(e) => setCfg({...cfg, localInference: {...cfg.localInference, executionProvider: e.target.value as AppConfig["localInference"]["executionProvider"]}})}
-                >
-                  <option value="auto">Auto</option>
-                  <option value="cuda">CUDA</option>
-                  <option value="cpu">CPU</option>
-                </select>
-
-                <label>Local Inference Device ID</label>
-                <input
-                  type="number"
-                  min={0}
-                  step={1}
-                  value={cfg.localInference?.deviceId ?? 0}
-                  onChange={(e) => {
-                    const n = parseInt(e.target.value, 10);
-                    setCfg({...cfg, localInference: {...cfg.localInference, deviceId: Number.isFinite(n) && n >= 0 ? n : 0}});
-                  }}
-                />
-
-                <label>Stable Audio 3 Model Dir</label>
-                <input
-                  value={cfg.stableAudio3?.modelDir ?? ""}
-                  onChange={(e) => setCfg({...cfg, stableAudio3: {...cfg.stableAudio3, modelDir: e.target.value}})}
-                  placeholder="E:/.../model/sa3-sm-music"
-                />
-
-                <label>Stable Audio 3 Output Dir</label>
-                <input
-                  value={cfg.stableAudio3?.outputDir ?? ""}
-                  onChange={(e) => setCfg({...cfg, stableAudio3: {...cfg.stableAudio3, outputDir: e.target.value}})}
-                  placeholder="E:/.../generate_music"
-                />
-
-                <label>Stable Audio 3 Prompt Base</label>
-                <input
-                  value={cfg.stableAudio3?.promptBase ?? ""}
-                  onChange={(e) => setCfg({...cfg, stableAudio3: {...cfg.stableAudio3, promptBase: e.target.value}})}
-                />
-
-                <label>Stable Audio 3 Seconds</label>
-                <input
-                  type="number"
-                  value={cfg.stableAudio3?.seconds ?? 30}
-                  onChange={(e) => setCfg({...cfg, stableAudio3: {...cfg.stableAudio3, seconds: parseFloat(e.target.value)}})}
-                />
-
-                <label>Stable Audio 3 Steps</label>
-                <input
-                  type="number"
-                  value={cfg.stableAudio3?.steps ?? 8}
-                  onChange={(e) => setCfg({...cfg, stableAudio3: {...cfg.stableAudio3, steps: parseInt(e.target.value, 10)}})}
-                />
-
-                <label>Irodori Model Dir</label>
-                <input
-                  value={cfg.irodori?.modelDir ?? ""}
-                  onChange={(e) => setCfg({...cfg, irodori: {...cfg.irodori, modelDir: e.target.value}})}
-                  placeholder="E:/.../model/irodori-v3"
-                />
-
-                <label>Irodori Narrator Dir</label>
-                <input
-                  value={cfg.irodori?.narratorDir ?? ""}
-                  onChange={(e) => setCfg({...cfg, irodori: {...cfg.irodori, narratorDir: e.target.value}})}
-                  placeholder="E:/.../narrator"
-                />
-
-                <label>Irodori Ref WAV</label>
-                <input
-                  value={cfg.irodori?.refWav ?? ""}
-                  onChange={(e) => setCfg({...cfg, irodori: {...cfg.irodori, refWav: e.target.value}})}
-                  placeholder="(optional)"
-                />
-
-                <label>Irodori Steps</label>
-                <input
-                  type="number"
-                  value={cfg.irodori?.numSteps ?? 40}
-                  onChange={(e) => setCfg({...cfg, irodori: {...cfg.irodori, numSteps: parseInt(e.target.value, 10)}})}
-                />
-
-                <label>Irodori Duration Scale</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={cfg.irodori?.durationScale ?? 1}
-                  onChange={(e) => setCfg({...cfg, irodori: {...cfg.irodori, durationScale: parseFloat(e.target.value)}})}
-                />
-
                 <label>RSS URLs (1行1URL)</label>
                 <textarea
-                  rows={6}
+                  rows={4}
                   value={(cfg.rssUrls ?? []).join("\n")}
                   onChange={(e) => setCfg({...cfg, rssUrls: e.target.value.split("\n").map(s => s.trim()).filter(Boolean)})}
                   placeholder="https://example.com/rss"
@@ -780,6 +660,187 @@ function App() {
                   placeholder="gpt-4o-mini"
                 />
               </div>
+
+              <details className="settings-details">
+                <summary>生成設定</summary>
+                <div className="modalGrid" style={{ marginTop: '10px' }}>
+                  <label>ORT DLL Path</label>
+                  <input
+                    value={cfg.localInference?.ortLibraryPath ?? ""}
+                    onChange={(e) => setCfg({...cfg, localInference: {...cfg.localInference, ortLibraryPath: e.target.value}})}
+                    placeholder="C:/path/to/onnxruntime.dll"
+                  />
+
+                  <label>Local Inference EP</label>
+                  <select
+                    value={cfg.localInference?.executionProvider ?? "auto"}
+                    onChange={(e) => setCfg({...cfg, localInference: {...cfg.localInference, executionProvider: e.target.value as AppConfig["localInference"]["executionProvider"]}})}
+                  >
+                    <option value="auto">Auto</option>
+                    <option value="cuda">CUDA</option>
+                    <option value="cpu">CPU</option>
+                  </select>
+
+                  <label>Local Inference Device ID</label>
+                  <input
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={cfg.localInference?.deviceId ?? 0}
+                    onChange={(e) => {
+                      const n = parseInt(e.target.value, 10);
+                      setCfg({...cfg, localInference: {...cfg.localInference, deviceId: Number.isFinite(n) && n >= 0 ? n : 0}});
+                    }}
+                  />
+
+                  <label>SA3 Model Dir</label>
+                  <input
+                    value={cfg.stableAudio3?.modelDir ?? ""}
+                    onChange={(e) => setCfg({...cfg, stableAudio3: {...cfg.stableAudio3, modelDir: e.target.value}})}
+                    placeholder="E:/.../model/sa3-sm-music"
+                  />
+
+                  <label>SA3 Output Dir</label>
+                  <input
+                    value={cfg.stableAudio3?.outputDir ?? ""}
+                    onChange={(e) => setCfg({...cfg, stableAudio3: {...cfg.stableAudio3, outputDir: e.target.value}})}
+                    placeholder="E:/.../generate_music"
+                  />
+
+                  <label>SA3 Genre</label>
+                  <select
+                    id="sa3GenreSettings"
+                    className="genreSelect"
+                    value={normalizeSa3Genre(cfg.stableAudio3?.genre)}
+                    onChange={(e) => setCfg({...cfg, stableAudio3: {...cfg.stableAudio3, genre: normalizeSa3Genre(e.target.value)}})}
+                  >
+                    {SA3_GENRES.map((g) => (
+                      <option key={g} value={g}>{g}</option>
+                    ))}
+                  </select>
+
+                  <label>SA3 Prompt Base</label>
+                  <input
+                    value={cfg.stableAudio3?.promptBase ?? ""}
+                    onChange={(e) => setCfg({...cfg, stableAudio3: {...cfg.stableAudio3, promptBase: e.target.value}})}
+                  />
+
+                  <label>SA3 Seconds</label>
+                  <input
+                    type="number"
+                    value={cfg.stableAudio3?.seconds ?? 30}
+                    onChange={(e) => setCfg({...cfg, stableAudio3: {...cfg.stableAudio3, seconds: parseFloat(e.target.value)}})}
+                  />
+
+                  <label>SA3 Steps</label>
+                  <input
+                    type="number"
+                    value={cfg.stableAudio3?.steps ?? 8}
+                    onChange={(e) => setCfg({...cfg, stableAudio3: {...cfg.stableAudio3, steps: parseInt(e.target.value, 10)}})}
+                  />
+
+                  <label>SA3 Seed Mode</label>
+                  <select
+                    value={cfg.stableAudio3?.seedMode ?? "random"}
+                    onChange={(e) => setCfg({...cfg, stableAudio3: {...cfg.stableAudio3, seedMode: e.target.value}})}
+                  >
+                    <option value="random">Random</option>
+                    <option value="fixed">Fixed</option>
+                    <option value="sequential">Sequential</option>
+                  </select>
+
+                  <label>SA3 Fixed Seed</label>
+                  <input
+                    type="number"
+                    value={cfg.stableAudio3?.fixedSeed ?? 0}
+                    onChange={(e) => setCfg({...cfg, stableAudio3: {...cfg.stableAudio3, fixedSeed: parseInt(e.target.value, 10)}})}
+                  />
+
+                  <label>SA3 Cache Limit</label>
+                  <input
+                    type="number"
+                    value={cfg.stableAudio3?.cacheLimit ?? 20}
+                    onChange={(e) => setCfg({...cfg, stableAudio3: {...cfg.stableAudio3, cacheLimit: parseInt(e.target.value, 10)}})}
+                  />
+
+                  <label>Irodori Model Dir</label>
+                  <input
+                    value={cfg.irodori?.modelDir ?? ""}
+                    onChange={(e) => setCfg({...cfg, irodori: {...cfg.irodori, modelDir: e.target.value}})}
+                    placeholder="E:/.../model/irodori-v3"
+                  />
+
+                  <label>Irodori Narrator Dir</label>
+                  <input
+                    value={cfg.irodori?.narratorDir ?? ""}
+                    onChange={(e) => setCfg({...cfg, irodori: {...cfg.irodori, narratorDir: e.target.value}})}
+                    placeholder="E:/.../narrator"
+                  />
+
+                  <label>Irodori Ref WAV</label>
+                  <input
+                    value={cfg.irodori?.refWav ?? ""}
+                    onChange={(e) => setCfg({...cfg, irodori: {...cfg.irodori, refWav: e.target.value}})}
+                    placeholder="(optional)"
+                  />
+
+                  <label>Irodori Steps</label>
+                  <input
+                    type="number"
+                    value={cfg.irodori?.numSteps ?? 40}
+                    onChange={(e) => setCfg({...cfg, irodori: {...cfg.irodori, numSteps: parseInt(e.target.value, 10)}})}
+                  />
+
+                  <label>Irodori Seed Mode</label>
+                  <select
+                    value={cfg.irodori?.seedMode ?? "random"}
+                    onChange={(e) => setCfg({...cfg, irodori: {...cfg.irodori, seedMode: e.target.value}})}
+                  >
+                    <option value="random">Random</option>
+                    <option value="fixed">Fixed</option>
+                    <option value="sequential">Sequential</option>
+                  </select>
+
+                  <label>Irodori Fixed Seed</label>
+                  <input
+                    type="number"
+                    value={cfg.irodori?.fixedSeed ?? 0}
+                    onChange={(e) => setCfg({...cfg, irodori: {...cfg.irodori, fixedSeed: parseInt(e.target.value, 10)}})}
+                  />
+
+                  <label>Irodori CFG Text</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={cfg.irodori?.cfgText ?? 3}
+                    onChange={(e) => setCfg({...cfg, irodori: {...cfg.irodori, cfgText: parseFloat(e.target.value)}})}
+                  />
+
+                  <label>Irodori CFG Caption</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={cfg.irodori?.cfgCaption ?? 3}
+                    onChange={(e) => setCfg({...cfg, irodori: {...cfg.irodori, cfgCaption: parseFloat(e.target.value)}})}
+                  />
+
+                  <label>Irodori CFG Speaker</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={cfg.irodori?.cfgSpeaker ?? 5}
+                    onChange={(e) => setCfg({...cfg, irodori: {...cfg.irodori, cfgSpeaker: parseFloat(e.target.value)}})}
+                  />
+
+                  <label>Irodori Duration Scale</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={cfg.irodori?.durationScale ?? 1}
+                    onChange={(e) => setCfg({...cfg, irodori: {...cfg.irodori, durationScale: parseFloat(e.target.value)}})}
+                  />
+                </div>
+              </details>
 
               <div className="modalFooter">
                 <button className="btn" onClick={() => setShowSettings(false)}>Cancel</button>

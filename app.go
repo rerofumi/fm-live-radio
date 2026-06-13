@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"fm-live-radio/internal/audio"
-	"fm-live-radio/internal/bgm"
 	"fm-live-radio/internal/domain"
 	"fm-live-radio/internal/generation"
 	"fm-live-radio/internal/musicgen"
@@ -136,12 +135,29 @@ func (a *App) SaveConfig(cfg domain.AppConfig) error {
 	return nil
 }
 
-// ScanGenres lists genre folders under current BGM root.
-func (a *App) ScanGenres() ([]string, error) {
+// UpdateStableAudio3Genre persists and applies a new Stable Audio 3 genre
+// without interrupting the current BGM item or any in-flight / prefetched
+// music. Other config fields are unchanged.
+func (a *App) UpdateStableAudio3Genre(genre string) error {
 	a.mu.Lock()
+	s := a.store
+	p := a.player
 	cfg := a.cfg
 	a.mu.Unlock()
-	return bgm.ListGenres(cfg.BGMRootPath)
+
+	cfg.StableAudio3.Genre = store.NormalizeStableAudio3Genre(genre)
+	if s != nil {
+		if err := s.SaveConfig(cfg); err != nil {
+			return err
+		}
+	}
+	a.mu.Lock()
+	a.cfg = cfg
+	a.mu.Unlock()
+	if p != nil {
+		p.UpdateStableAudio3Genre(cfg.StableAudio3.Genre)
+	}
+	return nil
 }
 
 // GetNextItem returns the next playable item for the player.
@@ -224,7 +240,7 @@ func (a *App) PrefetchTalk() {
 	a.mu.Unlock()
 	if p != nil {
 		p.PrefetchTalk(ts, cfg, h)
-		p.PrefetchMusic(ms, cfg, cfg.SelectedGenre)
+		p.PrefetchMusic(ms, cfg)
 	}
 	// small delay to keep binding non-blocking even after implementation
 	time.Sleep(0)

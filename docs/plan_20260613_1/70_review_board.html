@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Review Board - Remove Legacy Providers</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 24px; color: #1f2937; background: #f8fafc; }
+    main { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+    section { border: 1px solid #d1d5db; border-radius: 8px; padding: 16px; background: #fff; }
+    h1, h2 { margin-top: 0; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #d1d5db; padding: 8px; text-align: left; vertical-align: top; }
+  </style>
+</head>
+<body>
+  <h1>Review Board - Remove Legacy Providers</h1>
+  <main>
+    <section>
+      <h2>Decision Map</h2>
+      <table>
+        <tr><th>Decision</th><th>Options</th><th>Status</th></tr>
+        <tr><td>旧 provider 削除範囲</td><td>UI のみ / backend も削除</td><td>backend も削除予定</td></tr>
+        <tr><td>config migration</td><td>versioned migration / 読み捨て</td><td>読み捨て予定</td></tr>
+        <tr><td>生成設定 UI</td><td>常時展開 / accordion</td><td>accordion 予定</td></tr>
+      </table>
+    </section>
+    <section>
+      <h2>Impact Map</h2>
+      <table>
+        <tr><th>Area</th><th>Impact</th><th>Owner</th></tr>
+        <tr><td>Backend</td><td>AppConfig と provider 分岐を簡素化</td><td>Implementation</td></tr>
+        <tr><td>Frontend</td><td>Settings と main console を再編</td><td>Implementation</td></tr>
+        <tr><td>Docs</td><td>現行仕様から Gemini / file BGM を削除</td><td>Implementation</td></tr>
+      </table>
+    </section>
+    <section>
+      <h2>Risk Board</h2>
+      <table>
+        <tr><th>Risk</th><th>Mitigation</th><th>Residual Risk</th></tr>
+        <tr><td>旧 config 値が消える</td><td>旧 field は読み捨て、新保存で消えることを明記</td><td>意図した破壊的整理</td></tr>
+        <tr><td>Wails binding が古い</td><td>`wails generate module` と frontend build</td><td>CLI 未導入時は setup が必要</td></tr>
+      </table>
+    </section>
+    <section>
+      <h2>Review Lanes</h2>
+      <table>
+        <tr><th>Lane</th><th>Focus</th><th>Findings</th></tr>
+        <tr><td>Security</td><td>Gemini API key field 削除、LLM key は維持</td><td>未実装</td></tr>
+        <tr><td>Frontend</td><td>Settings grouping and accordion</td><td>未実装</td></tr>
+        <tr><td>Backend</td><td>Provider branch removal</td><td>未実装</td></tr>
+        <tr><td>Storage</td><td>Old config compatibility</td><td>未実装</td></tr>
+        <tr><td>QA</td><td>Go and frontend build</td><td>未実装</td></tr>
+      </table>
+    </section>
+    <section>
+      <h2>Traceability</h2>
+      <table>
+        <tr><th>Claim</th><th>Requirement</th><th>Specification</th><th>Test / Review</th></tr>
+        <tr><td>旧 provider 削除</td><td>FR-1, FR-4, FR-6</td><td>Data Model, Error Handling</td><td>go test</td></tr>
+        <tr><td>UI 整理</td><td>FR-7, FR-8, FR-10</td><td>UI / Screens</td><td>frontend build</td></tr>
+      </table>
+    </section>
+    <section>
+      <h2>Open Questions / Go-No-Go</h2>
+      <table>
+        <tr><th>Question</th><th>Needed Before</th><th>Decision Condition</th></tr>
+        <tr><td>`enabled` field を削除するか</td><td>実装</td><td>未回答なら固定 provider として削除</td></tr>
+      </table>
+    </section>
+  </main>
+</body>
+</html>

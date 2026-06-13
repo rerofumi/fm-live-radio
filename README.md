@@ -8,10 +8,8 @@ BGM を流しながら RSS から記事を選び、LLM で原稿を作り、TTS 
 現在は以下の構成で動きます。
 
 - BGM:
-  - 手元の音楽ファイル
   - Stable Audio 3 によるローカル生成
 - Talk:
-  - Gemini TTS
   - IrodoriTTS v3 によるローカル生成
 - Local inference:
   - ONNX Runtime CPU
@@ -31,10 +29,6 @@ BGM を流しながら RSS から記事を選び、LLM で原稿を作り、TTS 
 - OpenAI 互換 API
   - 例: Ollama, LM Studio, OpenRouter
 - RSS URL
-
-### Talk を Gemini で使う場合
-
-- Gemini API Key
 
 ### ローカル生成を使う場合
 
@@ -141,30 +135,12 @@ mise run build
 - `RSS URLs`
 - `LLM Base URL`
 - `LLM Model`
-- `TTS Source`
-- `BGM Source`
 
-用途別の推奨設定:
+### 推奨のローカル生成設定
 
-### ローカル Talk + ローカル BGM
-
-- `TTS Source` = `irodori`
-- `BGM Source` = `stable_audio_3`
 - `Local Inference Provider` = `auto`
 - `ORT DLL Path` = 空でよい
   - 既定探索で GPU ORT を拾います
-
-### ローカル Talk + ファイル BGM
-
-- `TTS Source` = `irodori`
-- `BGM Source` = `files`
-- `BGM Root Path` = 音楽フォルダ
-
-### Gemini Talk + ローカル BGM
-
-- `TTS Source` = `gemini`
-- `Gemini API Key` を設定
-- `TTS Model` / `TTS Voice` を設定
 
 ## GPU 利用の考え方
 
@@ -254,7 +230,7 @@ Settings の `ORT DLL Path` に次を入れます。
 
 ### 何を読んでいるか確認したい
 
-起動ログの `INFO: using ONNX Runtime shared library: ...` を見ます。
+起動ログ of `INFO: using ONNX Runtime shared library: ...` を見ます。
 
 ## Security
 
