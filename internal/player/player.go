@@ -104,11 +104,12 @@ func (p *Player) NextItem(audioSrv *audio.Server, talkSvc *talk.Service, musicSv
 		}
 		newHist := appendHistory(hist, prefetched.ArticleURL)
 		return domain.PlayableItem{
-			ID:         uuid.NewString(),
-			Kind:       domain.PlayableKindTalk,
-			URL:        url,
-			Title:      prefetched.ArticleTitle,
-			TopicTitle: prefetched.ArticleTitle,
+			ID:          uuid.NewString(),
+			Kind:        domain.PlayableKindTalk,
+			URL:         url,
+			LoudnessURL: audioSrv.LoudnessURLForAudioURL(url),
+			Title:       prefetched.ArticleTitle,
+			TopicTitle:  prefetched.ArticleTitle,
 			Source: domain.PlayableSource{
 				RssURL:     prefetched.FeedURL,
 				ArticleURL: prefetched.ArticleURL,
@@ -133,11 +134,12 @@ func (p *Player) NextItem(audioSrv *audio.Server, talkSvc *talk.Service, musicSv
 				p.mu.Unlock()
 				newHist := appendHistory(hist, res.ArticleURL)
 				return domain.PlayableItem{
-					ID:         uuid.NewString(),
-					Kind:       domain.PlayableKindTalk,
-					URL:        url,
-					Title:      res.ArticleTitle,
-					TopicTitle: res.ArticleTitle,
+					ID:          uuid.NewString(),
+					Kind:        domain.PlayableKindTalk,
+					URL:         url,
+					LoudnessURL: audioSrv.LoudnessURLForAudioURL(url),
+					Title:       res.ArticleTitle,
+					TopicTitle:  res.ArticleTitle,
 					Source: domain.PlayableSource{
 						RssURL:     res.FeedURL,
 						ArticleURL: res.ArticleURL,
@@ -207,10 +209,11 @@ func (p *Player) pickBGM(audioSrv *audio.Server, talkSvc *talk.Service, musicSvc
 		return domain.PlayableItem{}, hist, false, err
 	}
 	return domain.PlayableItem{
-		ID:    uuid.NewString(),
-		Kind:  domain.PlayableKindBGM,
-		URL:   url,
-		Title: res.Title,
+		ID:          uuid.NewString(),
+		Kind:        domain.PlayableKindBGM,
+		URL:         url,
+		LoudnessURL: audioSrv.LoudnessURLForAudioURL(url),
+		Title:       res.Title,
 		Source: domain.PlayableSource{
 			FilePath: res.AudioPath,
 			Provider: "stable_audio_3",

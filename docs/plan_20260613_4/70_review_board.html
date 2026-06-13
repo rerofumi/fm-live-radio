@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Visualizer Loudness Review Board</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 24px; color: #1f2937; }
+    main { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+    section { border: 1px solid #d1d5db; border-radius: 8px; padding: 16px; }
+    h1, h2 { margin-top: 0; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #d1d5db; padding: 8px; text-align: left; vertical-align: top; }
+  </style>
+</head>
+<body>
+  <h1>Visualizer Loudness Review Board</h1>
+  <main>
+    <section>
+      <h2>Decision Map</h2>
+      <table>
+        <tr><th>Decision</th><th>Options</th><th>Status</th></tr>
+        <tr><td>MVP方式</td><td>Backend WAV envelope / Web Audio RMS</td><td>Backend envelope 推奨</td></tr>
+        <tr><td>CORS</td><td>付ける / 付けない</td><td>JSON endpoint は付ける</td></tr>
+      </table>
+    </section>
+    <section>
+      <h2>Impact Map</h2>
+      <table>
+        <tr><th>Area</th><th>Impact</th><th>Owner</th></tr>
+        <tr><td>Backend</td><td>audio server に envelope cache と endpoint</td><td>Implementation</td></tr>
+        <tr><td>Frontend</td><td>Visualizer が loudness を amp に混合</td><td>Implementation</td></tr>
+      </table>
+    </section>
+    <section>
+      <h2>Risk Board</h2>
+      <table>
+        <tr><th>Risk</th><th>Mitigation</th><th>Residual Risk</th></tr>
+        <tr><td>WAV形式差</td><td>MVP対応範囲を明示し fallback</td><td>中</td></tr>
+        <tr><td>古いtoken値</td><td>item切替時に値をリセット</td><td>低</td></tr>
+      </table>
+    </section>
+    <section>
+      <h2>Review Lanes</h2>
+      <table>
+        <tr><th>Lane</th><th>Focus</th><th>Findings</th></tr>
+        <tr><td>Security</td><td>local CORS, token URL</td><td>外部公開なし、ただし origin は明示</td></tr>
+        <tr><td>Frontend</td><td>描画・reduced-motion</td><td>既存挙動維持</td></tr>
+        <tr><td>Backend</td><td>WAV decode, cache</td><td>未実装</td></tr>
+        <tr><td>QA</td><td>BGM/Talk/silence/skip</td><td>手動確認が必要</td></tr>
+      </table>
+    </section>
+  </main>
+</body>
+</html>

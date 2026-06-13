@@ -5,6 +5,8 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"math"
+	"os"
 	"time"
 )
 
@@ -133,4 +135,122 @@ func SilencePCM16(sampleRate, channels int, duration time.Duration) ([]byte, err
 	}
 	frames := int(duration.Seconds() * float64(sampleRate))
 	return make([]byte, frames*channels*2), nil
+}
+
+// LoudnessEnvelope is a precomputed RMS/peak envelope for a PCM16 WAV file.
+// Values are normalized into [0, 1] by dividing the absolute sample value by
+// 32768 (full-scale for signed 16-bit PCM).
+type LoudnessEnvelope struct {
+	WindowMS    int
+	SampleRate  int
+	DurationSec float64
+	RMS         []float64
+	Peak        []float64
+}
+
+// ComputeWavLoudnessEnvelopeFile reads the file at path as a PCM16LE WAV and
+// returns an RMS/peak envelope using windows of windowMs milliseconds.
+// Returns an error for non-WAV / unsupported formats.
+func ComputeWavLoudnessEnvelopeFile(path string, windowMs int) (LoudnessEnvelope, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return LoudnessEnvelope{}, err
+	}
+	return ComputeWavLoudnessEnvelope(data, windowMs)
+}
+
+// ComputeWavLoudnessEnvelope computes an RMS/peak envelope from raw WAV bytes.
+// Only 16-bit PCM (format=1) WAV is supported (DecodeWavPCM16 enforces this).
+func ComputeWavLoudnessEnvelope(data []byte, windowMs int) (LoudnessEnvelope, error) {
+	if windowMs <= 0 {
+		windowMs = 50
+	}
+	wav, err := DecodeWavPCM16(data)
+	if err != nil {
+		return LoudnessEnvelope{}, err
+	}
+	if wav.SampleRate <= 0 || wav.Channels <= 0 {
+		return LoudnessEnvelope{}, errors.New("invalid wav params")
+	}
+
+	bytesPerFrame := wav.Channels * 2
+	if bytesPerFrame <= 0 || len(wav.PCM)%bytesPerFrame != 0 {
+		return LoudnessEnvelope{}, errors.New("pcm length does not align to frames")
+	}
+	totalFrames := len(wav.PCM) / bytesPerFrame
+	durationSec := float64(totalFrames) / float64(wav.SampleRate)
+
+	framesPerWindow := wav.SampleRate * windowMs / 1000
+	if framesPerWindow <= 0 {
+		framesPerWindow = 1
+	}
+
+	// Ceiling division so the trailing partial window is included.
+	numWindows := (totalFrames + framesPerWindow - 1) / framesPerWindow
+	rms := make([]float64, 0, numWindows)
+	peak := make([]float64, 0, numWindows)
+
+	const fullScale = 32768.0
+
+	pcm := wav.PCM
+	channels := wav.Channels
+
+	for w := 0; w < numWindows; w++ {
+		startFrame := w * framesPerWindow
+		endFrame := startFrame + framesPerWindow
+		if endFrame > totalFrames {
+			endFrame = totalFrames
+		}
+		var sumSq float64
+		var maxAbs int32
+		var sampleCount int
+		for f := startFrame; f < endFrame; f++ {
+			base := f * bytesPerFrame
+			for c := 0; c < channels; c++ {
+				off := base + c*2
+				// little-endian signed 16-bit
+				s := int16(binary.LittleEndian.Uint16(pcm[off : off+2]))
+				abs := int32(s)
+				if abs < 0 {
+					abs = -abs
+				}
+				if abs > maxAbs {
+					maxAbs = abs
+				}
+				v := float64(s)
+				sumSq += v * v
+				sampleCount++
+			}
+		}
+		if sampleCount == 0 {
+			rms = append(rms, 0)
+			peak = append(peak, 0)
+			continue
+		}
+		mean := sumSq / float64(sampleCount)
+		r := math.Sqrt(mean) / fullScale
+		if r < 0 {
+			r = 0
+		}
+		if r > 1 {
+			r = 1
+		}
+		p := float64(maxAbs) / fullScale
+		if p < 0 {
+			p = 0
+		}
+		if p > 1 {
+			p = 1
+		}
+		rms = append(rms, r)
+		peak = append(peak, p)
+	}
+
+	return LoudnessEnvelope{
+		WindowMS:    windowMs,
+		SampleRate:  wav.SampleRate,
+		DurationSec: durationSec,
+		RMS:         rms,
+		Peak:        peak,
+	}, nil
 }

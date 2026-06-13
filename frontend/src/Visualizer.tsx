@@ -2,6 +2,14 @@ import {useEffect, useRef} from 'react';
 
 type Kind = 'bgm' | 'talk' | 'silence';
 
+export type LoudnessEnvelope = {
+  windowMs: number;
+  sampleRate?: number;
+  durationSec?: number;
+  rms: number[];
+  peak?: number[];
+};
+
 type VisualizerProps = {
   /** True while audio (or a silence gap) is on air. */
   playing: boolean;
@@ -9,6 +17,10 @@ type VisualizerProps = {
   kind?: Kind;
   /** 0..1 target volume for the current kind; modulates amplitude. */
   level?: number;
+  /** Current <audio> element so we can sample currentTime in the loop. */
+  audio?: HTMLAudioElement | null;
+  /** Precomputed RMS envelope for the current item, or null when unavailable. */
+  loudness?: LoudnessEnvelope | null;
 };
 
 // Hue per state. The wave always flows, but its color reflects what is on air.
@@ -21,7 +33,7 @@ const HUE: Record<string, number> = {
 
 type WaveTarget = {amp: number; energy: number; flow: number; hue: number};
 
-function targetFor(playing: boolean, kind: Kind | undefined, level: number): WaveTarget {
+function baseTargetFor(playing: boolean, kind: Kind | undefined, level: number): WaveTarget {
   const hue = HUE[kind ?? 'idle'] ?? HUE.idle;
   const lvl = Math.max(0, Math.min(1, level));
   if (!playing) {
@@ -38,19 +50,37 @@ function targetFor(playing: boolean, kind: Kind | undefined, level: number): Wav
   return {amp: 0.44 + 0.3 * lvl, energy: 1, flow: 1, hue};
 }
 
+function isValidEnvelope(env: LoudnessEnvelope | null | undefined): env is LoudnessEnvelope {
+  if (!env) return false;
+  if (typeof env.windowMs !== 'number' || env.windowMs <= 0) return false;
+  if (!Array.isArray(env.rms) || env.rms.length === 0) return false;
+  return true;
+}
+
+function sampleLoudness(env: LoudnessEnvelope, timeSec: number): number {
+  const idx = Math.floor((timeSec * 1000) / env.windowMs);
+  if (idx < 0) return env.rms[0] ?? 0;
+  if (idx >= env.rms.length) return env.rms[env.rms.length - 1] ?? 0;
+  const v = env.rms[idx];
+  if (!Number.isFinite(v)) return 0;
+  if (v < 0) return 0;
+  if (v > 1) return 1;
+  return v;
+}
+
 const LAYERS = [
   {freq: 1.0, speed: 0.6, weight: 1.0, alpha: 0.3},
   {freq: 1.7, speed: -0.95, weight: 0.62, alpha: 0.22},
   {freq: 2.6, speed: 1.35, weight: 0.4, alpha: 0.15},
 ];
 
-export default function Visualizer({playing, kind, level = 0.8}: VisualizerProps) {
+export default function Visualizer({playing, kind, level = 0.8, audio = null, loudness = null}: VisualizerProps) {
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   // Keep latest props without restarting the animation loop.
-  const propsRef = useRef<VisualizerProps>({playing, kind, level});
-  propsRef.current = {playing, kind, level};
+  const propsRef = useRef<VisualizerProps>({playing, kind, level, audio, loudness});
+  propsRef.current = {playing, kind, level, audio, loudness};
 
   // Lets the reduced-motion effect trigger a repaint on prop changes.
   const repaintStaticRef = useRef<() => void>(() => {});
@@ -69,8 +99,32 @@ export default function Visualizer({playing, kind, level = 0.8}: VisualizerProps
     let height = 1;
 
     // Smoothed wave state (interpolated toward the current target).
-    const cur: WaveTarget = {...targetFor(playing, kind, level ?? 0.8)};
+    const cur: WaveTarget = {...baseTargetFor(playing, kind, level ?? 0.8)};
     let phase = 0;
+
+    const computeTarget = (): WaveTarget => {
+      const p = propsRef.current;
+      const tgt = baseTargetFor(p.playing, p.kind, p.level ?? 0.8);
+      const env = isValidEnvelope(p.loudness) ? p.loudness! : null;
+      const a = p.audio;
+      // Only mix loudness when actively playing real audio (not silence / paused).
+      if (
+        env &&
+        a &&
+        p.playing &&
+        p.kind !== 'silence' &&
+        !a.paused &&
+        Number.isFinite(a.currentTime)
+      ) {
+        const lvl = Math.max(0, Math.min(1, p.level ?? 0.8));
+        const raw = sampleLoudness(env, a.currentTime);
+        const audible = raw * lvl;
+        // Mix into amp/energy while keeping the kind/level baseline.
+        tgt.amp = Math.min(1, tgt.amp + audible * 0.55);
+        tgt.energy = Math.min(1.6, tgt.energy + audible * 0.35);
+      }
+      return tgt;
+    };
 
     const paint = (timeSec: number) => {
       ctx.clearRect(0, 0, width, height);
@@ -141,8 +195,7 @@ export default function Visualizer({playing, kind, level = 0.8}: VisualizerProps
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
 
-      const p = propsRef.current;
-      const tgt = targetFor(p.playing, p.kind, p.level ?? 0.8);
+      const tgt = computeTarget();
       // Frame-rate independent smoothing toward the target.
       const k = 1 - Math.pow(0.0008, dt);
       cur.amp += (tgt.amp - cur.amp) * k;
@@ -156,8 +209,7 @@ export default function Visualizer({playing, kind, level = 0.8}: VisualizerProps
     };
 
     const renderStatic = () => {
-      const p = propsRef.current;
-      const tgt = targetFor(p.playing, p.kind, p.level ?? 0.8);
+      const tgt = computeTarget();
       cur.amp = tgt.amp;
       cur.energy = tgt.energy;
       cur.hue = tgt.hue;
@@ -198,7 +250,7 @@ export default function Visualizer({playing, kind, level = 0.8}: VisualizerProps
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       repaintStaticRef.current();
     }
-  }, [playing, kind, level]);
+  }, [playing, kind, level, audio, loudness]);
 
   return (
     <div className="viz" ref={wrapRef} aria-hidden="true">

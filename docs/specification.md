@@ -111,6 +111,7 @@
 - `id`
 - `kind`
 - `url`
+- `loudnessUrl`
 - `mime`
 - `title`
 - `artist`
@@ -118,7 +119,7 @@
 - `durationHintMs`
 - `source`
 
-`silence` の場合は `url` を持たず、`durationHintMs` に基づいてフロントエンド側の timer で待機する。
+`silence` の場合は `url` を持たず、`durationHintMs` に基づいてフロントエンド側の timer で待機する。`loudnessUrl` は audio server の `/loudness/<token>` を指し、対象が 16-bit PCM WAV で envelope precompute に成功した場合のみ意味のあるレスポンスを返す。それ以外（非 WAV / decode 失敗 / token 期限切れ）は server 側で 204 / 404 となり、フロントエンドは合成アニメーションへ fallback する。
 
 ### AppStatus
 
@@ -205,11 +206,17 @@
 
 `internal/audio.Server` は `127.0.0.1:0` で起動し、動的 port の local HTTP server として動作する。
 
-- path は `/audio/<token>`
+- path は `/audio/<token>` および `/loudness/<token>`。
 - `RegisterFile(path, ttl)` は file path を token と TTL に紐づける。
 - token は UUID で生成される。
-- expired token は request 時と 30 秒ごとの GC loop で削除される。
+- expired token は request 時と 30 秒ごとの GC loop で削除される。expired 時には対応する envelope cache も削除される。
 - MIME type は file extension から best-effort で設定される。
+- `RegisterFile` は対象 file 拡張子が `.wav` の場合のみ、16-bit PCM WAV と仮定して loudness envelope を計算してメモリ上にキャッシュする（`audiofmt.ComputeWavLoudnessEnvelopeFile`、window 50 ms）。decode 失敗・非 WAV は log warning のみとし、`RegisterFile` 自体は成功させる。
+- `/loudness/<token>` は JSON response `{windowMs, sampleRate, durationSec, rms, peak?}` を返す。値はすべて `[0, 1]` に clamp 済みの正規化値（`abs(sample) / 32768`）。
+  - token 未知 / 期限切れ: `404 Not Found`。
+  - envelope cache 未生成（非 WAV / decode 失敗など）: `204 No Content`。
+  - 成功時に `Access-Control-Allow-Origin: *`、`Access-Control-Allow-Methods: GET, OPTIONS`、`Access-Control-Allow-Headers: *` を付与し、`OPTIONS` preflight を 204 で許可する。
+- `Server.LoudnessURLForAudioURL(audioURL)` は `RegisterFile` が返した audio URL から対応する `/loudness/<token>` URL を導出するヘルパー。`player` から `PlayableItem.LoudnessURL` の設定に使う。
 
 ## BGM 実装
 
@@ -407,10 +414,21 @@ session option:
 
 Visualizer:
 
-- `playing` / `kind` / `level`(現在 kind の音量) を入力に、振幅・速度・色相を補間してなめらかに変化させる。
+- `playing` / `kind` / `level`(現在 kind の音量) / `audio`(現在の `<audio>` 要素) / `loudness`(現在 item の precomputed envelope or null) を入力に、振幅・速度・色相を補間してなめらかに変化させる。
 - アイドル/一時停止でも静かに流れ続け、「音が流れ続ける」コンセプトを表現する。
-- 実音声の FFT 解析は使わない。BGM/Talk はローカル別オリジン (`127.0.0.1:<port>`) 配信のため `AnalyserNode` が無音データになりやすく、音声経路を壊すリスクがある。状態駆動の合成アニメーションで描画する。
+- 実音声の FFT 解析、`AnalyserNode`、`captureStream`、`AudioContext` は使わない。バックエンドが事前計算した RMS envelope を 50 ms 窓で参照する方式を採る。
+- 描画 frame ごとに、`<audio>.currentTime` を `envelope.windowMs` で割って RMS 値を取得し、`level` を乗算したうえで kind/level ベースの `amp` / `energy` 目標値に混ぜる（amp に `+raw * level * 0.55`、energy に `+raw * level * 0.35`、いずれも clamp）。
+- `playing=false`、`kind='silence'`、`audio.paused`、envelope 不在のいずれかの場合は loudness の混入を行わず、既存の合成アニメーションへ静かに fallback する。
 - `prefers-reduced-motion` 時は静止フレームを描画し、状態変化時のみ再描画する。
+
+App.tsx の loudness fetch:
+
+- `current` 変更時に envelope state を即座に `null` へリセットする。
+- `current.loudnessUrl` が存在し、`current.kind !== 'silence'` の場合のみ `AbortController` 付きで `fetch` する。
+- 古い fetch が item 切替・skip 後に解決した場合は、`currentIdRef.current !== itemId` の比較で破棄する。`AbortController.abort()` も併用して通信自体を打ち切る。
+- 失敗（network / non-2xx / 204 / parse error）は toast 表示せず、合成アニメーション fallback のままにする。
+- 受信した `rms` / `peak` 配列は `[0, 1]` に再 clamp する。`windowMs` が数値かつ正、`rms` が空でない配列のときのみ採用する。
+- `stopPlayback` 時にも envelope を `null` へリセットする。
 
 再生:
 

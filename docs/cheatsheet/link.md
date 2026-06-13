@@ -33,3 +33,15 @@ These links were revalidated in `tts-research` on 2026-06-12 and copied here as 
 | https://github.com/microsoft/onnxruntime/releases | Release notes | 2026-06-12 | `onnxruntime-gpu.md` | GPU ORT distribution source and version |
 | https://github.com/yalue/onnxruntime_go | Library repository | 2026-06-12 | `onnxruntime-gpu.md` | Go binding CUDA EP support |
 | https://pkg.go.dev/github.com/yalue/onnxruntime_go | API docs | 2026-06-12 | `onnxruntime-gpu.md` | `SessionOptions` and `CUDAProviderOptions` APIs |
+
+## Web Sources Revalidated By Visualizer Loudness Research
+
+| URL | Source Type | Confirmation Date | Related File | Reason |
+| --- | --- | --- | --- | --- |
+| https://www.w3.org/TR/webaudio-1.1/ | W3C specification | 2026-06-13 | `frontend-visualizer.md` | `MediaElementAudioSourceNode` cross-origin security behavior; CORS-cross-origin resources must output silence |
+| https://developer.mozilla.org/en-US/docs/Web/API/AnalyserNode | MDN official docs | 2026-06-13 | `frontend-visualizer.md` | `AnalyserNode` real-time frequency/time-domain analysis behavior |
+| https://developer.mozilla.org/en-US/docs/Web/API/AnalyserNode/getByteTimeDomainData | MDN official docs | 2026-06-13 | `frontend-visualizer.md` | Time-domain waveform data can be sampled for RMS without spectrum UI |
+| https://developer.mozilla.org/en-US/docs/Web/API/AudioContext/createMediaElementSource | MDN official docs | 2026-06-13 | `frontend-visualizer.md` | `createMediaElementSource()` reroutes media element playback into the AudioContext graph |
+| https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/crossOrigin | MDN official docs | 2026-06-13 | `frontend-visualizer.md` | Required CORS mode behavior for media element resource fetches |
+| https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/captureStream | MDN official docs | 2026-06-13 | `frontend-visualizer.md` | `captureStream()` capability and Limited availability status |
+| https://wails.io/docs/guides/windows/ | Wails official docs | 2026-06-13 | `frontend-visualizer.md` | Windows Wails runtime dependency on Microsoft WebView2 |

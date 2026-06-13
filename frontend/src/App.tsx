@@ -1,6 +1,6 @@
 import {useEffect, useMemo, useRef, useState} from 'react';
 import './App.css';
-import Visualizer from './Visualizer';
+import Visualizer, {LoudnessEnvelope} from './Visualizer';
 
 import {GetNextItem, GetStatus, LoadConfig, PrefetchTalk, SaveConfig, SkipCurrent, UpdateStableAudio3Genre} from "../wailsjs/go/main/App";
 
@@ -10,6 +10,7 @@ type PlayableItem = {
   id: string;
   kind: PlayableKind;
   url?: string;
+  loudnessUrl?: string;
   title: string;
   topicTitle?: string;
   durationHintMs?: number;
@@ -110,6 +111,10 @@ function App() {
 
   const [elapsedSec, setElapsedSec] = useState(0);
   const [durationSec, setDurationSec] = useState<number | null>(null);
+
+  // Loudness envelope for the current item. Cleared immediately on item
+  // change / skip and replaced only when the fetch resolves for the same item.
+  const [loudness, setLoudness] = useState<LoudnessEnvelope | null>(null);
 
   const req = useMemo(() => ({}), []);
 
@@ -231,6 +236,82 @@ function App() {
     };
   }, [current?.id, current?.kind, isPlaying]);
 
+  // Fetch the loudness envelope once per item. We always reset to null first
+  // so old envelopes never leak into a new item. Stale fetch responses (item
+  // changed before fetch resolved) are ignored. Failures fall back silently
+  // to the synthetic visualizer animation.
+  useEffect(() => {
+    setLoudness(null);
+
+    const item = current;
+    if (!item || item.kind === 'silence') {
+      return;
+    }
+    const url = item.loudnessUrl;
+    if (!url) {
+      return;
+    }
+
+    const controller = new AbortController();
+    const itemId = item.id;
+    let cancelled = false;
+
+    (async () => {
+      let res: Response;
+      try {
+        res = await fetch(url, {signal: controller.signal});
+      } catch {
+        // network error — quietly stay on synthetic fallback
+        return;
+      }
+
+      // 204 No Content: server has no envelope for this token (e.g. non-WAV).
+      // Other non-2xx: expired token, network error response, etc.
+      // Fall back silently in both cases.
+      if (res.status === 204 || !res.ok) {
+        return;
+      }
+
+      if (cancelled) return;
+
+      let data: Partial<LoudnessEnvelope> | null = null;
+      try {
+        data = (await res.json()) as Partial<LoudnessEnvelope> | null;
+      } catch {
+        // empty or malformed body — fall back silently
+        return;
+      }
+
+      if (!data || typeof data.windowMs !== 'number' || data.windowMs <= 0) return;
+      if (!Array.isArray(data.rms) || data.rms.length === 0) return;
+      setLoudness((prev) => {
+        // Only accept if the item hasn't changed since this fetch was issued.
+        if (currentIdRef.current !== itemId) return prev;
+        return {
+          windowMs: data!.windowMs!,
+          sampleRate: typeof data!.sampleRate === 'number' ? data!.sampleRate : undefined,
+          durationSec: typeof data!.durationSec === 'number' ? data!.durationSec : undefined,
+          rms: data!.rms!.map((v) => (Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0)),
+          peak: Array.isArray(data!.peak)
+            ? data!.peak.map((v) => (Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0))
+            : undefined,
+        };
+      });
+    })();
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [current?.id, current?.kind, current?.loudnessUrl]);
+
+  // Track the current item id so async fetch handlers can detect staleness
+  // without re-subscribing.
+  const currentIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    currentIdRef.current = current?.id ?? null;
+  }, [current?.id]);
+
   async function persistConfig(next: AppConfig) {
     setCfg(next);
     setBgmVolume(next.bgmVolume);
@@ -249,6 +330,7 @@ function App() {
       audioRef.current.pause();
       audioRef.current.src = "";
     }
+    setLoudness(null);
   }
 
   async function playLoopNext() {
@@ -435,7 +517,13 @@ function App() {
             <div className="kindPill">{current?.kind ?? 'idle'}</div>
           </div>
 
-          <Visualizer playing={isPlaying} kind={current?.kind} level={currentLevel} />
+          <Visualizer
+            playing={isPlaying}
+            kind={current?.kind}
+            level={currentLevel}
+            audio={audioRef.current}
+            loudness={loudness}
+          />
 
           <div className="stageInfo">
             <h2 className="nowTitle" title={nowTitle}>{nowTitle}</h2>

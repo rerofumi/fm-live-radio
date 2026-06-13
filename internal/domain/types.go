@@ -91,6 +91,7 @@ type PlayableItem struct {
 	ID             string         `json:"id"`
 	Kind           PlayableKind   `json:"kind"`
 	URL            string         `json:"url,omitempty"`
+	LoudnessURL    string         `json:"loudnessUrl,omitempty"`
 	MIME           string         `json:"mime,omitempty"`
 	Title          string         `json:"title"`
 	Artist         string         `json:"artist,omitempty"`

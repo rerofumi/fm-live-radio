@@ -225,6 +225,7 @@ export namespace domain {
 	    id: string;
 	    kind: string;
 	    url?: string;
+	    loudnessUrl?: string;
 	    mime?: string;
 	    title: string;
 	    artist?: string;
@@ -241,6 +242,7 @@ export namespace domain {
 	        this.id = source["id"];
 	        this.kind = source["kind"];
 	        this.url = source["url"];
+	        this.loudnessUrl = source["loudnessUrl"];
 	        this.mime = source["mime"];
 	        this.title = source["title"];
 	        this.artist = source["artist"];
