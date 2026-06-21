@@ -91,7 +91,7 @@ func (s *Service) Generate(ctx context.Context, cfg domain.AppConfig, used map[s
 
 func buildUserPrompt(a rss.Article) string {
 	b := strings.Builder{}
-	b.WriteString("以下の記事を要約してラジオトーク原稿を作ってください。文字数は200〜300。固有名詞は必要最小限。\n")
+	b.WriteString("以下の記事を要約してラジオトーク原稿を作ってください。文字数は200〜300。固有名詞は必要最小限。設定などは語らず、トーク原稿のみを出力してください。\n")
 	b.WriteString("記事タイトル: ")
 	b.WriteString(a.Title)
 	b.WriteString("\n")
