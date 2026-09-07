@@ -1,6 +1,0 @@
-externalized codec_decoder.onnx -> codec_decoder.onnx.data
-externalized codec_encoder.onnx -> codec_encoder.onnx.data
-externalized dit_step.onnx -> dit_step.onnx.data
-externalized duration_predictor.onnx -> duration_predictor.onnx.data
-externalized speaker_encoder.onnx -> speaker_encoder.onnx.data
-externalized text_caption_encoder.onnx -> text_caption_encoder.onnx.data

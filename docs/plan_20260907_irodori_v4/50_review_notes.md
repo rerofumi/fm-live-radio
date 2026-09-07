@@ -49,3 +49,7 @@
 [evidence/wp1-acceptance.md](evidence/wp1-acceptance.md) によりREQ-01とREQ-03のWP-1部分をpassとする。途中のPyTorch単独smoke、ceil padding変更、参照1sample削除案は最終実装/受入の根拠から除外した。TF32を無効化し、公式speaker切捨てを維持し、codecの動的paddingを公式同値に修正した純ORT経路が受入対象。
 
 固定資産/licenseの最後の変更はmetadataのみ。最終差分で全6graph・重み・parity不変を確認して独立実行結果を保持した。計画全体は未完で、v3既定を維持しWP-2以降へ引き継ぐ。
+
+## 2026-09-08 利用者によるv4.1採用確定
+
+[明示判断](evidence/user-acceptance-v41.md)でv3との資源同等・読み優位を求めずv4.1を受け入れると決定。REQ08/09の正本を改訂し、新規既定切替とbenchmark採用gateだけを限定修正する。旧性能未達・VRAM欠測・品質の未採点箇所は歴史/診断として保持する。常駐cacheの追加最適化案は今回採用しない。実UI音声操作の未確認はモデル採用と別の残件。

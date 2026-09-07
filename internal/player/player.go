@@ -19,7 +19,17 @@ import (
 var ErrNotConfigured = errors.New("not configured")
 
 type Player struct {
-	mu sync.Mutex
+	mu               sync.Mutex
+	workWG           sync.WaitGroup
+	prefetchWG       sync.WaitGroup
+	ownerCtx         context.Context
+	ownerCancel      context.CancelFunc
+	shutdownAccepted chan struct{}
+	closed           bool
+	// generation is advanced whenever work already in flight must no longer
+	// publish a result (Skip, config replacement, or Shutdown). Workers carry
+	// the value they started with and publish only while it still matches.
+	generation uint64
 
 	cfg domain.AppConfig
 
@@ -27,23 +37,82 @@ type Player struct {
 	lastTrackPath         string
 	pendingSilence        bool
 
-	prefetchedTalk *talk.Result
-	prefetching    bool
-	cancelPrefetch context.CancelFunc
+	prefetchedTalk    *talk.Result
+	prefetching       bool
+	talkInFlight      int
+	cancelPrefetch    context.CancelFunc
+	talkPrefetchOwner uint64
 
 	prefetchedMusic      *musicgen.Result
 	musicPrefetching     bool
+	musicInFlight        int
 	cancelMusicPrefetch  context.CancelFunc
+	musicPrefetchOwner   uint64
+	nextPrefetchOwner    uint64
 	localGenerationError string
 }
 
 func New(cfg domain.AppConfig) *Player {
-	return &Player{cfg: cfg, pendingSilence: true}
+	ctx, cancel := context.WithCancel(context.Background())
+	return &Player{cfg: cfg, pendingSilence: true, ownerCtx: ctx, ownerCancel: cancel, shutdownAccepted: make(chan struct{})}
+}
+
+// Shutdown stops all player-owned work and waits for every Talk/BGM request
+// and prefetch goroutine to leave ORT before the application destroys it.
+func (p *Player) Shutdown() {
+	p.mu.Lock()
+	if p.closed {
+		p.mu.Unlock()
+		p.workWG.Wait()
+		p.prefetchWG.Wait()
+		return
+	}
+	p.closed = true
+	p.generation++
+	p.clearPrefetchLocked()
+	cancel := p.ownerCancel
+	p.mu.Unlock()
+	if cancel != nil {
+		cancel()
+	}
+	close(p.shutdownAccepted)
+	p.prefetchWG.Wait()
+	p.workWG.Wait()
+}
+
+// ShutdownAccepted returns a channel closed once Shutdown has invalidated the
+// player generation and cancelled its owner context. It is used by lifecycle
+// observers to distinguish an accepted shutdown request from a later join.
+func (p *Player) ShutdownAccepted() <-chan struct{} {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.shutdownAccepted
+}
+
+func (p *Player) beginWork() bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.closed {
+		return false
+	}
+	p.workWG.Add(1)
+	return true
+}
+
+func (p *Player) generationContext(timeout time.Duration) (context.Context, context.CancelFunc) {
+	p.mu.Lock()
+	owner := p.ownerCtx
+	p.mu.Unlock()
+	if owner == nil {
+		owner = context.Background()
+	}
+	return context.WithTimeout(owner, timeout)
 }
 
 func (p *Player) UpdateConfig(cfg domain.AppConfig) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	p.generation++
 	p.cfg = cfg
 	// reset cycle when config meaningfully changes
 	p.bgmCountSinceLastTalk = 0
@@ -63,8 +132,13 @@ func (p *Player) UpdateStableAudio3Genre(genre string) {
 }
 
 func (p *Player) NextItem(audioSrv *audio.Server, talkSvc *talk.Service, musicSvc *musicgen.Service, req domain.NextItemRequest, hist domain.History) (domain.PlayableItem, domain.History, bool, error) {
+	if !p.beginWork() {
+		return domain.PlayableItem{}, hist, false, ErrNotConfigured
+	}
+	defer p.workWG.Done()
 	p.mu.Lock()
 	cfg := p.cfg
+	workGeneration := p.generation
 
 	// Insert a "radio-like" gap between items.
 	if p.pendingSilence && cfg.Talk.SilenceGapMinMs > 0 {
@@ -119,15 +193,22 @@ func (p *Player) NextItem(audioSrv *audio.Server, talkSvc *talk.Service, musicSv
 	p.mu.Unlock()
 
 	if wantTalk && talkSvc != nil {
-		ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
+		ctx, cancel := p.generationContext(180 * time.Second)
 		defer cancel()
 
 		used := buildUsedMap(hist, nil)
 		res, err := talkSvc.Generate(ctx, cfg, used)
+		if err == nil && ctx.Err() != nil {
+			err = ctx.Err()
+		}
 		if err == nil {
 			url, err2 := audioSrv.RegisterFile(res.AudioPath, 10*time.Minute)
 			if err2 == nil {
 				p.mu.Lock()
+				if !p.publishAllowedLocked(workGeneration, ctx) {
+					p.mu.Unlock()
+					return domain.PlayableItem{}, hist, false, generationInvalidationError(ctx)
+				}
 				p.bgmCountSinceLastTalk = 0
 				p.pendingSilence = true
 				p.localGenerationError = generationWarning()
@@ -147,19 +228,26 @@ func (p *Player) NextItem(audioSrv *audio.Server, talkSvc *talk.Service, musicSv
 				}, newHist, true, nil
 			}
 		}
+		if ctx.Err() != nil {
+			return domain.PlayableItem{}, hist, false, ctx.Err()
+		}
 		log.Printf("WARN: talk generation failed, fallback to BGM: %v", err)
 		// Treat failed talk slot as consumed.
 		p.mu.Lock()
+		if !p.publishAllowedLocked(workGeneration, ctx) {
+			p.mu.Unlock()
+			return domain.PlayableItem{}, hist, false, generationInvalidationError(ctx)
+		}
 		p.bgmCountSinceLastTalk = 0
 		p.pendingSilence = true
 		p.mu.Unlock()
-		return p.pickBGM(audioSrv, talkSvc, musicSvc, cfg, hist)
+		return p.pickBGM(audioSrv, talkSvc, musicSvc, cfg, hist, workGeneration)
 	}
 
-	return p.pickBGM(audioSrv, talkSvc, musicSvc, cfg, hist)
+	return p.pickBGM(audioSrv, talkSvc, musicSvc, cfg, hist, workGeneration)
 }
 
-func (p *Player) pickBGM(audioSrv *audio.Server, talkSvc *talk.Service, musicSvc *musicgen.Service, cfg domain.AppConfig, hist domain.History) (domain.PlayableItem, domain.History, bool, error) {
+func (p *Player) pickBGM(audioSrv *audio.Server, talkSvc *talk.Service, musicSvc *musicgen.Service, cfg domain.AppConfig, hist domain.History, workGeneration uint64) (domain.PlayableItem, domain.History, bool, error) {
 	p.mu.Lock()
 	prefetched := p.prefetchedMusic
 	if prefetched != nil {
@@ -169,26 +257,50 @@ func (p *Player) pickBGM(audioSrv *audio.Server, talkSvc *talk.Service, musicSvc
 
 	var res musicgen.Result
 	var err error
+	var ctx context.Context
 	if prefetched != nil {
 		res = *prefetched
 	} else {
-		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+		var cancel context.CancelFunc
+		ctx, cancel = p.generationContext(90 * time.Second)
 		defer cancel()
 		if musicSvc == nil {
 			return domain.PlayableItem{}, hist, false, ErrNotConfigured
 		}
 		res, err = musicSvc.Generate(ctx, cfg)
+		if err == nil && ctx.Err() != nil {
+			err = ctx.Err()
+		}
 		if err != nil {
+			if ctx.Err() != nil {
+				return domain.PlayableItem{}, hist, false, ctx.Err()
+			}
 			if fallback, fbErr := musicSvc.Fallback(cfg); fbErr == nil {
 				res = fallback
 			} else {
-				p.setLocalGenerationError(err)
+				p.mu.Lock()
+				if p.publishAllowedLocked(workGeneration, ctx) {
+					p.localGenerationError = err.Error()
+				}
+				p.mu.Unlock()
 				return domain.PlayableItem{}, hist, false, err
 			}
 		}
 	}
 
+	url, err := audioSrv.RegisterFile(res.AudioPath, 10*time.Minute)
+	if err != nil {
+		return domain.PlayableItem{}, hist, false, err
+	}
+
+	// RegisterFile may race with Skip/UpdateConfig/Shutdown. Make the final
+	// state transition only after registration and under the same mutex-bound
+	// generation/context gate used by the worker publication paths.
 	p.mu.Lock()
+	if !p.publishAllowedLocked(workGeneration, ctx) {
+		p.mu.Unlock()
+		return domain.PlayableItem{}, hist, false, generationInvalidationError(ctx)
+	}
 	p.bgmCountSinceLastTalk++
 	p.pendingSilence = true
 	p.localGenerationError = generationWarning()
@@ -204,10 +316,6 @@ func (p *Player) pickBGM(audioSrv *audio.Server, talkSvc *talk.Service, musicSvc
 	}
 	p.PrefetchMusic(musicSvc, cfg)
 
-	url, err := audioSrv.RegisterFile(res.AudioPath, 10*time.Minute)
-	if err != nil {
-		return domain.PlayableItem{}, hist, false, err
-	}
 	return domain.PlayableItem{
 		ID:          uuid.NewString(),
 		Kind:        domain.PlayableKindBGM,
@@ -233,18 +341,17 @@ func (p *Player) Skip(audioSrv *audio.Server, talkSvc *talk.Service, musicSvc *m
 	// - If skipping silence: consume the gap (do not keep returning silence).
 	// - If skipping talk: treat as consumed (reset counter).
 	p.mu.Lock()
+	p.generation++
 
 	// Cancel in-flight generation if any.
 	if p.cancelPrefetch != nil {
 		p.cancelPrefetch()
-		p.cancelPrefetch = nil
-		p.prefetching = false
 	}
 	if p.cancelMusicPrefetch != nil {
 		p.cancelMusicPrefetch()
-		p.cancelMusicPrefetch = nil
-		p.musicPrefetching = false
 	}
+	// Keep the in-flight flags until each worker's defer has joined. Clearing
+	// them here would report a reservation as idle while ORT is still running.
 
 	switch req.CurrentKind {
 	case domain.PlayableKindBGM:
@@ -282,7 +389,8 @@ func (p *Player) PrefetchTalk(talkSvc *talk.Service, cfg domain.AppConfig, hist 
 	}
 
 	p.mu.Lock()
-	if !cfg.Talk.Enabled || p.prefetchedTalk != nil || p.prefetching {
+	workGeneration := p.generation
+	if p.closed || !cfg.Talk.Enabled || p.prefetchedTalk != nil || p.prefetching {
 		p.mu.Unlock()
 		return
 	}
@@ -292,27 +400,37 @@ func (p *Player) PrefetchTalk(talkSvc *talk.Service, cfg domain.AppConfig, hist 
 		return
 	}
 	p.prefetching = true
-	ctx, cancel := context.WithTimeout(context.Background(), 240*time.Second)
+	p.talkInFlight++
+	p.nextPrefetchOwner++
+	ownerToken := p.nextPrefetchOwner
+	p.talkPrefetchOwner = ownerToken
+	owner := p.ownerCtx
+	if owner == nil {
+		owner = context.Background()
+	}
+	ctx, cancel := context.WithTimeout(owner, 240*time.Second)
 	p.cancelPrefetch = cancel
+	p.prefetchWG.Add(1)
 	p.mu.Unlock()
 
 	go func() {
-		defer func() {
-			p.mu.Lock()
-			p.prefetching = false
-			p.cancelPrefetch = nil
-			p.mu.Unlock()
-		}()
+		defer p.prefetchWG.Done()
+		defer p.finishTalkPrefetch(workGeneration, ownerToken)
 
 		used := buildUsedMap(hist, nil)
 		res, err := talkSvc.Generate(ctx, cfg, used)
+		if err == nil && ctx.Err() != nil {
+			err = ctx.Err()
+		}
 		if err != nil {
 			log.Printf("WARN: talk prefetch failed: %v", err)
 			return
 		}
 		p.mu.Lock()
-		p.prefetchedTalk = &res
-		p.localGenerationError = generationWarning()
+		if p.publishAllowedLocked(workGeneration, ctx) {
+			p.prefetchedTalk = &res
+			p.localGenerationError = generationWarning()
+		}
 		p.mu.Unlock()
 	}()
 }
@@ -350,9 +468,9 @@ func (p *Player) Status() domain.AppStatus {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return domain.AppStatus{
-		TalkPrefetching:      p.prefetching,
+		TalkPrefetching:      p.talkInFlight > 0,
 		TalkReady:            p.prefetchedTalk != nil,
-		MusicGenerating:      p.musicPrefetching,
+		MusicGenerating:      p.musicInFlight > 0,
 		MusicReady:           p.prefetchedMusic != nil,
 		LocalGenerationError: p.localGenerationError,
 	}
@@ -363,32 +481,81 @@ func (p *Player) PrefetchMusic(musicSvc *musicgen.Service, cfg domain.AppConfig)
 		return
 	}
 	p.mu.Lock()
-	if p.prefetchedMusic != nil || p.musicPrefetching {
+	workGeneration := p.generation
+	if p.closed || p.prefetchedMusic != nil || p.musicPrefetching {
 		p.mu.Unlock()
 		return
 	}
 	p.musicPrefetching = true
-	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
+	p.musicInFlight++
+	p.nextPrefetchOwner++
+	ownerToken := p.nextPrefetchOwner
+	p.musicPrefetchOwner = ownerToken
+	owner := p.ownerCtx
+	if owner == nil {
+		owner = context.Background()
+	}
+	ctx, cancel := context.WithTimeout(owner, 180*time.Second)
 	p.cancelMusicPrefetch = cancel
+	p.prefetchWG.Add(1)
 	p.mu.Unlock()
 
 	go func() {
-		defer func() {
-			p.mu.Lock()
-			p.musicPrefetching = false
-			p.cancelMusicPrefetch = nil
-			p.mu.Unlock()
-		}()
+		defer p.prefetchWG.Done()
+		defer p.finishMusicPrefetch(workGeneration, ownerToken)
 		res, err := musicSvc.Generate(ctx, cfg)
+		if err == nil && ctx.Err() != nil {
+			err = ctx.Err()
+		}
 		if err != nil {
-			p.setLocalGenerationError(err)
+			p.mu.Lock()
+			if p.publishAllowedLocked(workGeneration, ctx) {
+				p.localGenerationError = err.Error()
+			}
+			p.mu.Unlock()
 			return
 		}
 		p.mu.Lock()
-		p.prefetchedMusic = &res
-		p.localGenerationError = generationWarning()
+		if p.publishAllowedLocked(workGeneration, ctx) {
+			p.prefetchedMusic = &res
+			p.localGenerationError = generationWarning()
+		}
 		p.mu.Unlock()
 	}()
+}
+
+// finishTalkPrefetch releases only the reservation owned by this worker. A
+// replacement worker may be running after Skip/UpdateConfig while the old
+// worker is still joining ORT, so generation and ownership must not be used to
+// clear the replacement's active flag or cancellation handle.
+func (p *Player) finishTalkPrefetch(workGeneration, ownerToken uint64) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.talkInFlight > 0 {
+		p.talkInFlight--
+	}
+	// Both values belong to the reservation.  The owner token prevents an old
+	// worker from clearing a replacement reservation; the generation check also
+	// protects the cleanup path if a reservation handle is reused while a
+	// previous generation is still joining.
+	if p.generation == workGeneration && p.talkPrefetchOwner == ownerToken {
+		p.prefetching = false
+		p.talkPrefetchOwner = 0
+		p.cancelPrefetch = nil
+	}
+}
+
+func (p *Player) finishMusicPrefetch(workGeneration, ownerToken uint64) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.musicInFlight > 0 {
+		p.musicInFlight--
+	}
+	if p.generation == workGeneration && p.musicPrefetchOwner == ownerToken {
+		p.musicPrefetching = false
+		p.musicPrefetchOwner = 0
+		p.cancelMusicPrefetch = nil
+	}
 }
 
 func (p *Player) setLocalGenerationError(err error) {
@@ -399,6 +566,21 @@ func (p *Player) setLocalGenerationError(err error) {
 		return
 	}
 	p.localGenerationError = err.Error()
+}
+
+// publishAllowedLocked is the final publication gate. The caller must hold
+// p.mu; checking the context, lifecycle, and generation together closes the
+// race where Skip/UpdateConfig/Shutdown lands between the worker's last
+// context check and its ready-state write.
+func (p *Player) publishAllowedLocked(workGeneration uint64, ctx context.Context) bool {
+	return !p.closed && p.generation == workGeneration && (ctx == nil || ctx.Err() == nil)
+}
+
+func generationInvalidationError(ctx context.Context) error {
+	if ctx != nil && ctx.Err() != nil {
+		return ctx.Err()
+	}
+	return context.Canceled
 }
 
 func generationWarning() string {

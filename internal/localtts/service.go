@@ -26,6 +26,7 @@ const (
 )
 
 var ErrEmptyText = errors.New("irodori text is empty")
+var ErrAllSentencesFailed = errors.New("irodori all sentences failed; refusing all-silence success")
 
 type Service struct {
 	mu sync.Mutex
@@ -36,32 +37,42 @@ func New() *Service {
 }
 
 func (s *Service) SynthesizeWav(ctx context.Context, cfg domain.AppConfig, text string) ([]byte, error) {
-	if strings.TrimSpace(cfg.Irodori.ModelDir) == "" {
-		return nil, generation.ErrProviderNotConfigured
-	}
-	if err := generation.ConfigureExecutionProvider(cfg.LocalInference.ExecutionProvider, cfg.LocalInference.DeviceID); err != nil {
-		return nil, err
-	}
-	if err := generation.Init(cfg.LocalInference.ORTLibraryPath); err != nil {
-		return nil, err
-	}
-	if err := validateModelAssets(cfg.Irodori.ModelDir); err != nil {
-		return nil, err
-	}
+	return s.synthesizeWav(ctx, cfg, text, nil)
+}
 
+// SynthesizeWavWithObserver is the observable form used by lifecycle smoke
+// tests. The normal product API remains SynthesizeWav; observers receive only
+// real runtime/join events and never synthetic started/joined values.
+func (s *Service) SynthesizeWavWithObserver(ctx context.Context, cfg domain.AppConfig, text string, observer pipeline.EventObserver) ([]byte, error) {
+	return s.synthesizeWav(ctx, cfg, text, observer)
+}
+
+func (s *Service) synthesizeWav(ctx context.Context, cfg domain.AppConfig, text string, observer pipeline.EventObserver) ([]byte, error) {
+	if err := runPreflight(cfg, observer); err != nil {
+		return nil, err
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	return s.synthesizeSentences(ctx, cfg, text)
+	wav, err := s.synthesizeSentences(ctx, cfg, text, observer)
+	if observer != nil && err == nil {
+		observer(pipeline.EventTalkEnd)
+	}
+	return wav, err
 }
 
-func (s *Service) synthesizeSentences(ctx context.Context, cfg domain.AppConfig, text string) ([]byte, error) {
+func (s *Service) synthesizeSentences(ctx context.Context, cfg domain.AppConfig, text string, observer pipeline.EventObserver) ([]byte, error) {
 	sentences := splitSentences(text)
 	if len(sentences) == 0 {
 		return nil, ErrEmptyText
 	}
 
 	combined := make([]byte, 0)
+	tempDir, err := os.MkdirTemp("", "fm-live-radio-talk-")
+	if err != nil {
+		return nil, err
+	}
+	defer os.RemoveAll(tempDir)
 	gap, err := audiofmt.SilencePCM16(irodoriSampleRate, irodoriChannels, irodoriSentenceGap)
 	if err != nil {
 		return nil, err
@@ -71,6 +82,24 @@ func (s *Service) synthesizeSentences(ctx context.Context, cfg domain.AppConfig,
 		return nil, err
 	}
 
+	// A Runtime is deliberately scoped to one Talk. This reuses the loaded
+	// model/reference sessions across sentences without creating a process-wide
+	// GPU cache. The service mutex serializes inference and owns the Close call.
+	baseOpt := pipelineOptions(cfg)
+	baseOpt.Observer = observer
+	if observer != nil {
+		observer(pipeline.EventLoadStart)
+	}
+	rt, err := pipeline.LoadInitialise(baseOpt)
+	if observer != nil {
+		observer(pipeline.EventLoadEnd)
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer rt.Close()
+
+	succeeded := 0
 	for i, sentence := range sentences {
 		select {
 		case <-ctx.Done():
@@ -78,29 +107,93 @@ func (s *Service) synthesizeSentences(ctx context.Context, cfg domain.AppConfig,
 		default:
 		}
 
-		pcm, err := s.synthesizeSentencePCM(ctx, cfg, sentence)
+		sentenceOpt := baseOpt
+		// Preserve the legacy per-sentence randomness while keeping the loaded
+		// model/reference runtime shared for the whole Talk.
+		if strings.TrimSpace(cfg.Irodori.SeedMode) != "fixed" {
+			sentenceOpt.Seed = resolveSeed(cfg.Irodori.SeedMode, cfg.Irodori.FixedSeed)
+		}
+		pcm, err := s.synthesizeSentencePCM(ctx, rt, sentenceOpt, sentence)
 		if err != nil {
 			if ctx.Err() != nil {
 				return nil, ctx.Err()
 			}
 			pcm = failSilence
+		} else {
+			succeeded++
 		}
 		combined = append(combined, pcm...)
 		if i < len(sentences)-1 {
+			if observer != nil {
+				observer(pipeline.EventGapStart)
+			}
 			combined = append(combined, gap...)
+			if observer != nil {
+				observer(pipeline.EventGapEnd)
+			}
 		}
 	}
+	if succeeded == 0 {
+		return nil, ErrAllSentencesFailed
+	}
 
-	return audiofmt.EncodeWavPCM16(combined, irodoriSampleRate, irodoriChannels)
+	if observer != nil {
+		observer(pipeline.EventCombineStart)
+	}
+	wav, err := audiofmt.EncodeWavPCM16(combined, irodoriSampleRate, irodoriChannels)
+	if observer != nil {
+		observer(pipeline.EventCombineEnd)
+	}
+	return wav, err
 }
 
-func (s *Service) synthesizeSentencePCM(ctx context.Context, cfg domain.AppConfig, text string) ([]byte, error) {
-	outPath, err := s.synthesizeToFile(ctx, cfg, text)
+// runPreflight is deliberately a separate phase.  Its end event is emitted
+// before runtime loading starts, so benchmark spans are disjoint and a bad
+// bundle cannot be mistaken for a sentence failure.
+func runPreflight(cfg domain.AppConfig, observer pipeline.EventObserver) error {
+	if observer != nil {
+		observer(pipeline.EventPreflightStart)
+		defer observer(pipeline.EventPreflightEnd)
+	}
+	if strings.TrimSpace(cfg.Irodori.ModelDir) == "" {
+		return generation.ErrProviderNotConfigured
+	}
+	if err := validateModelAssets(cfg.Irodori.ModelDir); err != nil {
+		return err
+	}
+	if err := generation.ConfigureExecutionProvider(cfg.LocalInference.ExecutionProvider, cfg.LocalInference.DeviceID); err != nil {
+		return err
+	}
+	if err := generation.Init(cfg.LocalInference.ORTLibraryPath); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *Service) synthesizeSentencePCM(ctx context.Context, rt *pipeline.Runtime, baseOpt pipeline.Options, text string) ([]byte, error) {
+	tempDir, err := os.MkdirTemp("", "fm-live-radio-sentence-")
 	if err != nil {
 		return nil, err
 	}
+	defer os.RemoveAll(tempDir)
+	outPath := filepath.Join(tempDir, fmt.Sprintf("irodori_%d.wav", time.Now().UnixNano()))
 	defer os.Remove(outPath)
 
+	opt := baseOpt
+	opt.Text = text
+	opt.OutputWAV = outPath
+	if err := synthesizeToFile(ctx, rt, opt); err != nil {
+		if opt.Observer != nil {
+			// synthesizeToFile has joined the actual worker before returning.
+			opt.Observer(pipeline.EventServiceJoined)
+		}
+		return nil, err
+	}
+	if opt.Observer != nil {
+		// This event is after the Service's worker receive, not a synthetic
+		// replacement for the runtime's inference-end event.
+		opt.Observer(pipeline.EventServiceJoined)
+	}
 	data, err := os.ReadFile(outPath)
 	if err != nil {
 		return nil, err
@@ -112,18 +205,21 @@ func (s *Service) synthesizeSentencePCM(ctx context.Context, cfg domain.AppConfi
 	if wav.SampleRate != irodoriSampleRate || wav.Channels != irodoriChannels {
 		return nil, fmt.Errorf("irodori wav format mismatch: %d Hz, %d channels", wav.SampleRate, wav.Channels)
 	}
-	return wav.PCM, nil
+	envelope, err := audiofmt.ComputeWavLoudnessEnvelope(data, 50)
+	if err != nil {
+		return nil, fmt.Errorf("irodori wav loudness: %w", err)
+	}
+	for i := range envelope.RMS {
+		if envelope.RMS[i] > 0 && envelope.Peak[i] > 0 {
+			return wav.PCM, nil
+		}
+	}
+	return nil, errors.New("irodori wav is silent")
 }
 
-func (s *Service) synthesizeToFile(ctx context.Context, cfg domain.AppConfig, text string) (string, error) {
-	tmpDir := os.TempDir()
-	name := fmt.Sprintf("irodori_%d.wav", time.Now().UnixNano())
-	outPath := filepath.Join(tmpDir, name)
-
+func pipelineOptions(cfg domain.AppConfig) pipeline.Options {
 	opt := pipeline.DefaultOptions()
 	opt.ModelDir = cfg.Irodori.ModelDir
-	opt.Text = text
-	opt.OutputWAV = outPath
 	opt.Seconds = cfg.Irodori.Seconds
 	opt.NumSteps = cfg.Irodori.NumSteps
 	opt.CfgText = cfg.Irodori.CfgText
@@ -132,26 +228,31 @@ func (s *Service) synthesizeToFile(ctx context.Context, cfg domain.AppConfig, te
 	opt.DurationScale = cfg.Irodori.DurationScale
 	opt.RefWAV = resolveReferenceWAV(cfg.Irodori)
 	opt.Seed = resolveSeed(cfg.Irodori.SeedMode, cfg.Irodori.FixedSeed)
+	return opt
+}
 
-	rt, err := pipeline.LoadInitialise(opt)
-	if err != nil {
-		return "", err
-	}
-	defer rt.Close()
-
+// synthesizeToFile waits for the inference goroutine even after cancellation.
+// ORT has no portable in-flight cancellation API; returning early and closing
+// the Runtime would race with Run and can corrupt later Talk/BGM requests.
+func synthesizeToFile(ctx context.Context, rt *pipeline.Runtime, opt pipeline.Options) error {
 	done := make(chan error, 1)
 	go func() {
-		done <- rt.Synthesize()
+		done <- rt.SynthesizeWithOptions(opt)
 	}()
 
 	select {
 	case err := <-done:
-		if err != nil {
-			return "", err
+		if opt.Observer != nil {
+			opt.Observer(pipeline.EventInferenceJoined)
 		}
-		return outPath, nil
+		return err
 	case <-ctx.Done():
-		return "", ctx.Err()
+		// Wait for ORT to leave the session before the caller's deferred Close.
+		<-done
+		if opt.Observer != nil {
+			opt.Observer(pipeline.EventInferenceJoined)
+		}
+		return ctx.Err()
 	}
 }
 
@@ -186,6 +287,16 @@ func resolveSeed(mode string, fixed uint32) uint32 {
 }
 
 func validateModelAssets(modelDir string) error {
+	if _, err := os.Stat(filepath.Join(modelDir, "manifest.json")); err == nil {
+		m, err := metadata.LoadManifest(modelDir)
+		if err != nil {
+			return fmt.Errorf("irodori v4 preflight rejected: %w", err)
+		}
+		if err := m.VerifyHashes(modelDir); err != nil {
+			return fmt.Errorf("irodori v4 preflight integrity check failed: %w", err)
+		}
+		return nil
+	}
 	if _, err := os.Stat(filepath.Join(modelDir, "tokenizer.json")); err != nil {
 		return err
 	}

@@ -101,7 +101,7 @@ sidecar、`tokenizer/tokenizer.json` です。exporter の仮想環境と開発�
 upstream license/NOTICE URL は
 `model/irodori-v4.1/manifest.json` に記録します。
 固定revisionから取得したModernBERTとDACVAEのlicense原文も
-`docs/plan_20260907_irodori_v4/evidence/licenses/` に保存し、manifestの
+`docs/licenses/irodori/` に保存し、manifestの
 `licenses.notice_files` にSHA256を記録します。これは配布対象へ依存環境を追加する
 ものではありません。
 
@@ -117,4 +117,39 @@ ORT で実行し、同一入力を公式 PyTorch wrapper に渡した比較を�
 
 変換失敗は manifest の `export.errors` と標準エラーに、演算・shape・precisionを
 含めて記録します。失敗を成功として扱う互換 fallback はありません。
+
+## Go parity fixture の再生成と配布境界
+
+`model/irodori-v4.1/go-parity-fixture.json` は公式 PyTorch wrapper の値を保存した
+検証専用 fixture です。`manifest.json` の `fixtures.sha256` と、fixture 内の
+  `provenance`（source/model/tokenizer/codec revision、各ファイル hash、`uv.lock` hash、
+  generator hash）を同時に更新します。製品の起動・通常生成はこの fixture や Python
+  環境を要求しません。
+
+  duration predictor の条件行には、公式 `build_duration_features` の入力テキスト
+  （fixture 共通の `duration_feature_text`）、token count、max text length、speaker/caption
+  flags と、公式14要素の期待ベクトル `duration_features` を保存します。Go parity は
+  期待ベクトルをNN入力へ転送せず、製品の `buildDurationFeatures` で再構成した14要素を
+  `atol=1e-4`/`rtol=1e-3` で比較してから、その再構成値をduration predictorへ渡します。
+
+固定入力を明示し、空の出力先から再生成します。codec は revision 固定の weights を
+解決し、hash が違う場合は生成前に失敗します。
+
+```powershell
+$out = 'model/irodori-v4.1-go-parity-rebuild'
+if (Test-Path $out) { throw 'output directory must be new and empty' }
+New-Item -ItemType Directory $out | Out-Null
+mise x -- uv run --project tools/irodori_export --locked python tools/irodori_export/generate_go_fixture.py `
+  --source third_party/irodori-v4-research/Irodori-TTS-8224dafb46d0aba89209a8f905f1cb7e3299d9c1 `
+  --checkpoint third_party/irodori-v4-research/Irodori-TTS-v4.1-Small/model.safetensors `
+  --tokenizer third_party/irodori-v4-research/Irodori-TTS-v4.1-Small/tokenizer/tokenizer.json `
+  --codec Aratako/Semantic-DACVAE-Japanese-32dim `
+  --out "$out/go-parity-fixture.json"
+```
+
+`model/`、`third_party/`、exporter の `.venv` はリポジトリの ignore 対象です。
+配布 bundle に含めるのは manifest が示す6 graph、`.onnx.data`、tokenizer と license
+notice だけで、固定 source、checkpoint、codec weights、lock、fixture は再現・受入
+用の開発/検証資産です。fixture を配布 bundle に同梱したり、製品の起動時に必須化
+したりしてはいけません。
 

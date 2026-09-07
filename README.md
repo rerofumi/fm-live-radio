@@ -8,7 +8,7 @@ BGM を流しながら RSS から記事を選び、LLM で原稿を作り、TTS 
 現在は以下の構成で動きます。
 
 - **BGM**: Stable Audio 3 によるローカル生成
-- **Talk**: IrodoriTTS v3 によるローカル生成
+- **Talk**: IrodoriTTS v4.1（v3互換） によるローカル生成
 - **Local inference**: ONNX Runtime CPU / CUDA (`auto` / `cuda` / `cpu`)
 
 ---
@@ -56,7 +56,11 @@ $env:HF_TOKEN = "your_huggingface_token"
 powershell -ExecutionPolicy Bypass -File scripts\download_sa3_models.ps1
 ```
 
-#### ③ IrodoriTTS v3 の重みファイル (ONNX) の生成
+#### ③ IrodoriTTS の重みファイル (ONNX) の生成
+
+新規設定の既定は `model/irodori-v4.1` です。[v4.1専用export手順](tools/irodori_export/README.md)でbundleを生成し、manifest・graph・外部重み一式をこの場所へ配置するか、Settingsで生成先を指定してください。既存のv3設定や任意パスは保持されます。
+
+以下はv3を継続利用する場合の手順です。
 IrodoriTTS v3 モデルは HuggingFace からダウンロードした上で、ONNX 形式への変換が必要です。変換には [mtsmfm/Irodori-TTS-ONNX](https://github.com/mtsmfm/Irodori-TTS-ONNX) の exporter を使用します。
 
 1. 適当な作業用ディレクトリで `Irodori-TTS-ONNX` をクローンします。
@@ -83,13 +87,20 @@ IrodoriTTS v3 モデルは HuggingFace からダウンロードした上で、ON
 ### 4. 動作テスト
 GPU が正しく認識され、推論ができるかスモークテストで確認します。
 ```powershell
-# 通常テスト (auto)
-mise x -- go run ./cmd/local_smoketest
+# 明示した v4.1 model/EP のサービス smoke（model/EPを明示）
+mise run tts-smoke
 
-# GPU (CUDA) を強制してテスト
-$env:FM_RADIO_ORT_EP='cuda'
-mise x -- go run ./cmd/local_smoketest
-Remove-Item Env:FM_RADIO_ORT_EP
+# GPU (CUDA) を強制して別プロセスで確認
+mise x -- go run ./cmd/tts-smoke --service --model model/irodori-v4.1 --ep cuda --steps 2 --seconds 0.5
+
+# 実Stable Audio BGM + 製品Player/Talkの3周期E2E（RSS/LLMのみloopback fixture）
+mise run tts-e2e
+
+# RTX 5090 等で製品Service経路の10原稿比較を実測（CPU/CUDA/autoは別プロセス）
+mise run tts-benchmark
+
+# 人間試聴用60 WAV（全文40step、10原稿×seed 0/1/2×v3/v4.1）
+mise run tts-audition
 ```
 
 ### 5. アプリケーションの起動とビルド
@@ -97,7 +108,7 @@ Remove-Item Env:FM_RADIO_ORT_EP
 # 開発モードで起動
 mise run dev
 
-# 本番用 exe のビルド
+# 本番用 exe のビルド（新規設定はv4.1既定）
 # 実行ファイルは build/bin/fm-live-radio.exe に出力されます
 mise run build
 ```
@@ -117,7 +128,7 @@ mise run build
 │
 ├── model/
 │   ├── sa3-sm-music/                 # 手順1の 3.② で入手した Stable Audio 3 モデル
-│   └── irodori-v3/                   # 手順1の 3.③ で生成した IrodoriTTS v3 モデル
+│   └── irodori-v4.1/                   # 手順1の 3.③ で生成した IrodoriTTS v4.1 bundle
 │
 ├── narrator/
 │   └── narrator_01.wav               # 同梱の話者参照 WAV ファイル (任意)
@@ -161,6 +172,10 @@ mise run build
   ```
 
 ---
+
+## Irodori v4.1 対応（2026-09-08）
+
+新規設定の既定をv4.1に変更しました。保存済みのv3・任意パスは保持します。
 
 ## 📄 ライセンス
 [MIT License](LICENSE)

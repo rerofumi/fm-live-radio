@@ -1,8 +1,12 @@
 # Current Specification
 
-最終確認日: 2026-06-13
+最終確認日: 2026-09-08
 
 この文書は、現在実装されている `fm-live-radio` の実装仕様を示す。現行コードと一致する構造、データ、フロー、環境制約のみを記載する。
+
+## 2026-09-08 as-built（WP-5実装）
+
+v4.1は `manifest.json` のschema/graph/tokenizer/external dataをTalk開始前に検査し、1 Talk内でRuntimeを再利用する。製品bundleへのparity fixture同梱・fixture hashは必須ではなく、fixture hashはparity検証時だけ記録・比較する。新規設定のIrodori modelDirはv4.1で、保存済みv3・任意パスは保持する。`cmd/tts-benchmark` は製品Service/Talk経路で固定10原稿（200–300字）のpreflight/load/各文/結合/close、RTF、期限、推論中pollしたnvidia-smi process VRAM（WDDMでprocess値がN/Aの場合は厳密PID/DXGI LUID/GPU UUID照合のWindows CIM `DedicatedUsage`へfallbackし、device-totalは正式process値へ代入しない）、20回定常反復、p95 v4/v3比とWAV manifestをJSON/CSVへ保存する。`cmd/tts-e2e` はRSS/LLMだけloopback fixtureを使い、実Stable Audio BGM・製品Player・Talk・audio server/loudness、v4/v3子プロセス再起動、preflight負例、Skip/取消join/close/active shutdownを実行する。Stable Audioやv4資産が無い場合はfixtureへフォールバックせず非zeroで報告する。CPU/CUDA/autoはORT共有のため別プロセスで実行する。
 
 ## 技術スタック
 
@@ -169,7 +173,7 @@
 - `stableAudio3.steps`: `8`
 - `stableAudio3.seedMode`: `random`
 - `stableAudio3.cacheLimit`: `20`
-- `irodori.modelDir`: `<base>/model/irodori-v3`
+- `irodori.modelDir`: `<base>/model/irodori-v4.1`
 - `irodori.narratorDir`: `<base>/narrator`
 - `irodori.seconds`: `-1`
 - `irodori.numSteps`: `40`
@@ -460,22 +464,31 @@ mise x -- npm --prefix frontend run build
 mise run build
 ```
 
-ローカル生成 smoke test:
+明示v4.1サービス smoke test:
 
 ```powershell
-mise x -- go run ./cmd/local_smoketest
+mise run tts-smoke
 ```
 
 CUDA 強制 smoke test:
 
 ```powershell
 $env:FM_RADIO_ORT_EP='cuda'
-mise x -- go run ./cmd/local_smoketest
+mise x -- go run ./cmd/tts-smoke --service --model model/irodori-v4.1 --ep cuda --steps 2 --seconds 0.5
 Remove-Item Env:FM_RADIO_ORT_EP
 ```
 
-`cmd/local_smoketest` は Stable Audio 3 と IrodoriTTS を短い設定で実行し、生成 WAV の sample rate、channel、frames、peak、RMS を確認する。peak または RMS が 0 以下なら失敗とする。
+`cmd/tts-smoke` はIrodori v4.1のpreflight、生成WAV、Runtime lifecycleを確認する。`mise run tts-e2e` はlocal RSS/LLM fixtureの3周期、`mise run tts-benchmark` は固定10原稿・20回定常反復を実行する。CPU/CUDA/autoは共有ORTのため別プロセスで実行する。
 
 ## Tokenizer互換性（2026-09-08）
 
 internal/localtts/irodori/tokenizerは固定Irodori v4.1 tokenizerの設定、特殊token、UTF-8 byte fallback、padding/truncationを解釈し、旧v3処理をlegacy分岐で保持する。EncodePaddedCheckedは非正長をエラーにする追加API。既存pipelineのtext256/caption64と呼出しAPIは維持する。固定公式との656条件一致、v3旧実装との656条件一致を[独立検証](plan_20260907_irodori_v4/evidence/wp2-acceptance.md)した。これはtokenizer対応のみで、製品のv4推論対応や既定モデル変更は含まない。
+
+## v4.1の現在の受入状況（2026-09-08）
+
+利用者の採用承認に基づき、新規設定の既定をv4.1へ変更した。保存済みv3・任意パスと参照音声設定は保持する。Runtime再利用は1 Talk内に限定し、取消時は推論完了/join後にCloseする。Player予約のcleanupは世代と所有者が一致する場合だけ行う。常駐Runtime cacheは未採用。
+
+正式CUDA40step/自動durationの製品E2E3周期、CPU/auto fallback、全Go/race/frontend/Wails build、実Settings保持を独立確認した。旧比較基準ではp95比1.93365と定常VRAM増加幅が未達だったが、利用者承認により資源同等性を採用条件から外した。元の測定値・欠測は診断情報として保持する。正式60 WAVの生成証拠を保持し、聞き取れるアナウンス品質は利用者が受け入れた。全ペア個別採点済みとは扱わない。実UIは利用者が起動・一通りの動作確認を行い、問題なしとして現状を最終承認した。個々の操作ログの提出とは区別する。benchmarkは件数・条件・全phase生成成功・v4期限・child失敗を採用判定に反映し、p95比とVRAM比較を別の診断欄へ記録する。正本は[計画status](plan_20260907_irodori_v4/90_status.md)、測定境界は[TTS検証手順](cheatsheet/tts-benchmark-e2e.md)。
+
+
+

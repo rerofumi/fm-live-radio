@@ -51,6 +51,35 @@ func ResolveORTLibraryPath(cfgPath string) string {
 	return ""
 }
 
+// ResolveORTLibraryPathForEP selects a DLL matching the requested provider.
+// Loading a CPU DLL while asking for CUDA (or the reverse) is a hard error;
+// callers should pass this result to Init before creating any session.
+func ResolveORTLibraryPathForEP(provider string) string {
+	ep := normalizeEPConfig(provider, 0).Provider
+	if ep == "cuda" || ep == "auto" {
+		for _, candidate := range []string{
+			filepath.Join("third_party", "onnxruntime-gpu", "onnxruntime-win-x64-gpu-1.26.0", "lib", "onnxruntime.dll"),
+			filepath.Join("onnxruntime-gpu.dll"),
+		} {
+			if _, err := os.Stat(candidate); err == nil {
+				return candidate
+			}
+		}
+		if ep == "cuda" {
+			return ""
+		}
+	}
+	for _, candidate := range []string{
+		filepath.Join("third_party", "onnxruntime", "onnxruntime-win-x64-1.26.0", "lib", "onnxruntime.dll"),
+		filepath.Join("onnxruntime.dll"),
+	} {
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate
+		}
+	}
+	return ""
+}
+
 func ConfigureExecutionProvider(provider string, deviceID int) error {
 	initMu.Lock()
 	defer initMu.Unlock()
@@ -110,6 +139,12 @@ func Init(libraryPath string) error {
 	initMu.Lock()
 	defer initMu.Unlock()
 
+	// Sessions call Init("") after the service has already selected and
+	// initialized the shared library. Do not re-resolve the default search
+	// order (which may prefer the GPU DLL) and falsely report a path switch.
+	if initialized && strings.TrimSpace(libraryPath) == "" {
+		return nil
+	}
 	resolved := ResolveORTLibraryPath(libraryPath)
 	if resolved == "" {
 		return ErrORTNotConfigured
@@ -207,6 +242,9 @@ func buildCUDAOptions(deviceID int) (*ort.SessionOptions, error) {
 
 	if err := cudaOpts.Update(map[string]string{
 		"device_id": strconv.Itoa(deviceID),
+		// Keep CUDA graph math aligned with the FP32 PyTorch reference. This is
+		// process/session scoped and does not mutate the shared BGM CPU path.
+		"use_tf32": "0",
 	}); err != nil {
 		_ = opts.Destroy()
 		return nil, wrapCUDAError("configure cuda provider options", err)

@@ -995,7 +995,7 @@ function App() {
                   <input
                     value={cfg.irodori?.modelDir ?? ""}
                     onChange={(e) => setCfg({...cfg, irodori: {...cfg.irodori, modelDir: e.target.value}})}
-                    placeholder="E:/.../model/irodori-v3"
+                    placeholder="E:/.../model/irodori-v4.1"
                   />
 
                   <label>Irodori Narrator Dir</label>

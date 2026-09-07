@@ -1,6 +1,6 @@
 # 実装仕様と段階的な移行手順
 
-対象: v4.1 第一候補 / Go + ONNX 維持。採用は **条件付き**。対応 exporter と6 ONNX graphの独立検証は成功。固定資産・手順を含むWP-1最終結果は90_statusを参照し、WP-2以降の全ゲート前に既定切替しない。
+対象: v4.1採用 / Go + ONNX維持。2026-09-08の[利用者判断](evidence/user-acceptance-v41.md)により性能比/メモリ増加幅を採用条件から外す。以下の初期WP設計は履歴として参照し、今回の既定切替とgate改訂には末尾の採用確定仕様を優先する。
 
 ## 現行コードから変わる点
 
@@ -91,3 +91,11 @@ WP-1で `mise run tts-export-v4` と `mise run tts-parity-v4`（REQ-01/03）を�
 既存Go tokenizerを拡張し、固定v4.1資産の設定を解釈する。v4のPAD=3、prepend_scheme=never、literal特殊token、byte単位Unigram経路とfloat64スコアを使用し、旧v3はlegacy分岐で従来の列を維持する。EncodePaddedCheckedを追加し、非正長をエラーにする。既存consumerのAPIとtext256/caption64は維持する。
 
 [WP-2独立受入](evidence/wp2-acceptance.md): 公式656正常条件＋4無効長、旧v3との656条件が一致。任意tokenizer形式の汎用対応は保証しない。新binding・依存・mise task追加なし。再生成と検証の実行手順は受入報告を参照。製品v4推論組込はWP-3であり、今回着手しない。
+
+## 2026-09-08 採用確定後の限定実装（REQ-06/08/09/10）
+
+- 新規設定のIrodori modelDirとUI placeholderをmodel/irodori-v4.1へ切り替える。保存済みv3/任意modelDir/RefWAV/narratorDirとv3への手動復帰は維持する。fixture/E2Eの明示v3比較入力は変更しない。
+- benchmarkはp95比/旧1.2判定とVRAM/旧+512判定・欠測を診断として保存する。これらだけで既定の採用検証をnonzeroにしない。生成失敗、件数/seed/条件/provenance不整合、v4の60秒期限未達はnonzeroを維持する。診断のfalse/unavailableを成功値へ書き換えない。reportに採用判定と旧比較診断の区別を明示する。
+- 旧正式run/レポートは変更せず、新基準への評価とツールの限定修正を別証拠にする。変更影響は既定設定/表示とbenchmark判定の既知consumerに限定し、targeted/expanded tests・frontend/Wails buildで確認する。数値推論、実モデル長時間性能測定、60 WAVの再生成は不要。
+- 既存の1 Talk内Runtime共有・終了時Closeを維持し、常駐cache/voice design UI/追加性能最適化を実装しない。
+- REQ10の未観測実UI項目は未確認のまま保持する。モデル採用・新規既定切替は利用者の承認により実行するが、計画doneの判定で人間観測を捏造しない。

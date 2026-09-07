@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"path/filepath"
+	"sync"
 
 	ort "fm-live-radio/internal/generation"
 	"fm-live-radio/internal/musicgen/stableaudio/sampler_pingpong"
@@ -23,7 +24,23 @@ type Options struct {
 	ModelDir   string
 	OutputWAV  string
 	SampleRate int
+	Observer   EventObserver
 }
+
+type RuntimeEvent string
+
+const (
+	EventInferenceStart  RuntimeEvent = "start inference"
+	EventInferenceEnd    RuntimeEvent = "end inference"
+	EventInferenceJoined RuntimeEvent = "join"
+	// EventServiceJoined is emitted by musicgen.Service after its worker result
+	// has been received; pipeline join alone is not the service join boundary.
+	EventServiceJoined RuntimeEvent = "service join"
+	EventCloseStart    RuntimeEvent = "start close"
+	EventCloseEnd      RuntimeEvent = "end close"
+)
+
+type EventObserver func(RuntimeEvent)
 
 // DefaultOptions returns sensible default parameters.
 func DefaultOptions() Options {
@@ -37,12 +54,20 @@ func DefaultOptions() Options {
 
 // Runtime holds the loaded models and tokenizer.
 type Runtime struct {
-	opt     Options
-	tok     *tokenizer_t5gemma.Tokenizer
-	encoder *ort.Session
-	dit     *ort.Session
-	decoder *ort.Session
-	closed  bool
+	mu        sync.Mutex
+	runMu     sync.Mutex
+	active    sync.WaitGroup
+	opt       Options
+	tok       *tokenizer_t5gemma.Tokenizer
+	encoder   *ort.Session
+	dit       *ort.Session
+	decoder   *ort.Session
+	closed    bool
+	closeDone chan struct{}
+	observer  EventObserver
+	// closeWaitHook is test-only instrumentation. It fires immediately before
+	// the first Close caller waits for in-flight generation.
+	closeWaitHook func()
 }
 
 // LoadInitialise loads the tokenizer and ONNX sessions.
@@ -87,20 +112,44 @@ func LoadInitialise(opt Options) (*Runtime, error) {
 	}
 
 	return &Runtime{
-		opt:     opt,
-		tok:     tok,
-		encoder: encoder,
-		dit:     dit,
-		decoder: decoder,
+		opt:       opt,
+		tok:       tok,
+		encoder:   encoder,
+		dit:       dit,
+		decoder:   decoder,
+		closeDone: make(chan struct{}),
+		observer:  opt.Observer,
 	}, nil
 }
 
 // Close destroys the ONNX sessions.
 func (r *Runtime) Close() {
+	r.mu.Lock()
 	if r.closed {
+		done := r.closeDone
+		r.mu.Unlock()
+		if done != nil {
+			<-done
+		}
 		return
 	}
 	r.closed = true
+	if r.closeDone == nil {
+		r.closeDone = make(chan struct{})
+	}
+	done := r.closeDone
+	r.mu.Unlock()
+	defer close(done)
+	if r.observer != nil {
+		r.observer(EventCloseStart)
+		defer r.observer(EventCloseEnd)
+	}
+	if r.closeWaitHook != nil {
+		r.closeWaitHook()
+	}
+	r.active.Wait()
+	r.runMu.Lock()
+	r.runMu.Unlock()
 	if r.encoder != nil {
 		r.encoder.Destroy()
 	}
@@ -114,9 +163,23 @@ func (r *Runtime) Close() {
 
 // Synthesize runs the full text-to-audio generation pipeline.
 func (r *Runtime) Synthesize(onStep func(step, totalSteps int)) error {
+	r.mu.Lock()
 	if r.closed {
+		r.mu.Unlock()
 		return fmt.Errorf("pipeline: runtime closed")
 	}
+	r.active.Add(1)
+	r.mu.Unlock()
+	if r.observer != nil {
+		r.observer(EventInferenceStart)
+		defer func() {
+			r.observer(EventInferenceEnd)
+			r.observer(EventInferenceJoined)
+		}()
+	}
+	defer r.active.Done()
+	r.runMu.Lock()
+	defer r.runMu.Unlock()
 
 	const (
 		SamplesPerLatent = 4096

@@ -497,8 +497,8 @@ def _manifest_base(args, checkpoint: Path, tokenizer: Path, cfg, inference, back
             "development_only": ["tools/irodori_export/.venv", "tools/irodori_export/uv.lock"],
             "notice_sources": ["https://github.com/Aratako/Irodori-TTS/blob/8224dafb46d0aba89209a8f905f1cb7e3299d9c1/LICENSE", "https://github.com/facebookresearch/dacvae/blob/414c20785fc3a28373073ea8ef7a1316eeeaca6e/LICENSE"],
             "notice_files": [
-                {"component": "ModernBERT-ja tokenizer", "path": "docs/plan_20260907_irodori_v4/evidence/licenses/modernbert-ja-LICENSE.txt", "sha256": "284353c80e0d52c06e97af62fd40e4dd1d253fa28f5d1e756121ea1d5d441509"},
-                {"component": "DACVAE code", "path": "docs/plan_20260907_irodori_v4/evidence/licenses/dacvae-LICENSE.txt", "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"},
+                {"component": "ModernBERT-ja tokenizer", "path": "docs/licenses/irodori/modernbert-ja-LICENSE.txt", "sha256": "284353c80e0d52c06e97af62fd40e4dd1d253fa28f5d1e756121ea1d5d441509"},
+                {"component": "DACVAE code", "path": "docs/licenses/irodori/dacvae-LICENSE.txt", "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"},
             ],
         },
         "conditions": {

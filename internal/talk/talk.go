@@ -7,11 +7,13 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"fm-live-radio/internal/domain"
 	"fm-live-radio/internal/llm"
 	"fm-live-radio/internal/localtts"
+	"fm-live-radio/internal/localtts/irodori/pipeline"
 	"fm-live-radio/internal/rss"
 )
 
@@ -31,7 +33,9 @@ type Service struct {
 	llm    *llm.OpenAICompat
 	local  *localtts.Service
 
-	tempDir string
+	tempDir    string
+	observerMu sync.RWMutex
+	observer   pipeline.EventObserver
 }
 
 func New(tempDir string) *Service {
@@ -41,6 +45,20 @@ func New(tempDir string) *Service {
 		local:   localtts.New(),
 		tempDir: tempDir,
 	}
+}
+
+// SetObserver installs a diagnostic lifecycle observer. It lets verification
+// distinguish a real inference call from a prefetch reservation.
+func (s *Service) SetObserver(observer pipeline.EventObserver) {
+	s.observerMu.Lock()
+	s.observer = observer
+	s.observerMu.Unlock()
+}
+
+func (s *Service) observerSnapshot() pipeline.EventObserver {
+	s.observerMu.RLock()
+	defer s.observerMu.RUnlock()
+	return s.observer
 }
 
 func (s *Service) Generate(ctx context.Context, cfg domain.AppConfig, used map[string]bool) (Result, error) {
@@ -71,13 +89,20 @@ func (s *Service) Generate(ctx context.Context, cfg domain.AppConfig, used map[s
 		return Result{}, ErrEmptyScript
 	}
 
-	wav, err := s.local.SynthesizeWav(ctx, cfg, script)
+	wav, err := s.local.SynthesizeWavWithObserver(ctx, cfg, script, s.observerSnapshot())
 	if err != nil {
+		return Result{}, err
+	}
+	if err := ctx.Err(); err != nil {
 		return Result{}, err
 	}
 
 	audioPath, err := s.writeTempAudio(wav, ".wav")
 	if err != nil {
+		return Result{}, err
+	}
+	if err := ctx.Err(); err != nil {
+		_ = os.Remove(audioPath)
 		return Result{}, err
 	}
 

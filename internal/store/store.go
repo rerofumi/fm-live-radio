@@ -52,7 +52,16 @@ func New() (*Store, error) {
 	if err != nil {
 		return nil, err
 	}
-	baseDir := filepath.Join(cfgDir, appDirName)
+	return NewAt(filepath.Join(cfgDir, appDirName))
+}
+
+// NewAt creates a store in an explicit directory.  It is used by isolated
+// migration/E2E harnesses so they can exercise save/restart semantics without
+// changing the user's real config or history.
+func NewAt(baseDir string) (*Store, error) {
+	if strings.TrimSpace(baseDir) == "" {
+		return nil, errors.New("empty store directory")
+	}
 	if err := os.MkdirAll(baseDir, 0o755); err != nil {
 		return nil, err
 	}
@@ -106,7 +115,7 @@ func DefaultConfig() domain.AppConfig {
 			CacheLimit: 20,
 		},
 		Irodori: domain.IrodoriConfig{
-			ModelDir:      filepath.Join(base, "model", "irodori-v3"),
+			ModelDir:      filepath.Join(base, "model", "irodori-v4.1"),
 			NarratorDir:   filepath.Join(base, "narrator"),
 			Seconds:       -1,
 			NumSteps:      40,

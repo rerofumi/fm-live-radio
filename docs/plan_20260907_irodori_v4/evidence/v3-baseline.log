@@ -1,2 +1,0 @@
-2026/09/07 21:14:32 INFO: using ONNX Runtime shared library: third_party\onnxruntime-gpu\onnxruntime-win-x64-gpu-1.26.0\lib\onnxruntime.dll
-V3_BASELINE load_seconds=6.166 synthesis_seconds=3.028 output=third_party/irodori-v4-research/v3-baseline.wav steps=40 seed=0

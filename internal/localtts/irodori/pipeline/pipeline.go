@@ -9,7 +9,10 @@ package pipeline
 import (
 	"fmt"
 	"math"
+	"os"
 	"path/filepath"
+	"sync"
+	"sync/atomic"
 
 	ort "fm-live-radio/internal/generation"
 	"fm-live-radio/internal/localtts/irodori/metadata"
@@ -20,6 +23,49 @@ import (
 
 	onnx "github.com/yalue/onnxruntime_go"
 )
+
+var runtimeLoadCount atomic.Uint64
+var runtimeCloseCount atomic.Uint64
+
+// RuntimeEvent is emitted at real lifecycle boundaries so smoke tests can
+// verify ordering without relying on fixed booleans or timing assumptions.
+type RuntimeEvent string
+
+const (
+	EventPreflightStart  RuntimeEvent = "start preflight"
+	EventPreflightEnd    RuntimeEvent = "end preflight"
+	EventLoadStart       RuntimeEvent = "start runtime load"
+	EventLoaded          RuntimeEvent = "load"
+	EventLoadEnd         RuntimeEvent = "end runtime load"
+	EventSentenceStart   RuntimeEvent = "start sentence"
+	EventSentenceEnd     RuntimeEvent = "end sentence"
+	EventCombineStart    RuntimeEvent = "start combine"
+	EventGapStart        RuntimeEvent = "start 300ms gap"
+	EventGapEnd          RuntimeEvent = "end 300ms gap"
+	EventCombineEnd      RuntimeEvent = "end combine"
+	EventTalkEnd         RuntimeEvent = "end talk"
+	EventInferenceStart  RuntimeEvent = "start inference"
+	EventInferenceEnd    RuntimeEvent = "end inference"
+	EventInferenceJoined RuntimeEvent = "join"
+	// EventServiceJoined is emitted by localtts.Service after it has received
+	// the inference worker result; it is distinct from the runtime goroutine's
+	// own join event.
+	EventServiceJoined RuntimeEvent = "service join"
+	EventCloseStart    RuntimeEvent = "start close"
+	EventCloseEnd      RuntimeEvent = "end close"
+)
+
+type EventObserver func(RuntimeEvent)
+
+// RuntimeLoadCount reports successful Runtime loads in this process. It is
+// intentionally small and read-only so smoke tests can prove that a Talk
+// loads once while each sentence reuses the same sessions.
+func RuntimeLoadCount() uint64 { return runtimeLoadCount.Load() }
+
+// RuntimeCloseCount reports successful first Close transitions in this
+// process. Smoke harnesses use it to make the cancel→join→close sequence
+// observable without exposing session internals.
+func RuntimeCloseCount() uint64 { return runtimeCloseCount.Load() }
 
 // Options holds the user-supplied synthesis parameters.
 type Options struct {
@@ -35,6 +81,7 @@ type Options struct {
 	RefWAV        string
 	CfgSpeaker    float64
 	DurationScale float64
+	Observer      EventObserver
 }
 
 // DefaultOptions returns sensible defaults for v2-VoiceDesign and v3.
@@ -53,6 +100,9 @@ func DefaultOptions() Options {
 // Runtime holds the loaded ONNX sessions and tokenizer for a single
 // model directory. Call Close to release resources.
 type Runtime struct {
+	mu         sync.Mutex
+	runMu      sync.Mutex
+	inflight   sync.WaitGroup
 	md         *metadata.Metadata
 	opt        Options
 	textTok    *tokenizer.Tokenizer
@@ -64,12 +114,27 @@ type Runtime struct {
 	dacEnc     *ort.Session
 	ditStep    *ort.Session
 	decDAC     *ort.Session
+	v4         *v4Runtime
 	closed     bool
+	closeDone  chan struct{}
+	observer   EventObserver
+	// closeWaitHook is test-only instrumentation. It fires immediately before
+	// the first Close caller waits for in-flight inference, allowing a second
+	// Close caller to be started at a deterministic lifecycle point.
+	closeWaitHook func()
 }
 
 // LoadInitialise loads metadata, tokenizers, and all required ONNX
 // sessions from modelDir, then validates the model manifest.
 func LoadInitialise(opt Options) (*Runtime, error) {
+	if _, err := os.Stat(filepath.Join(opt.ModelDir, "manifest.json")); err == nil {
+		rt, err := loadV4Runtime(opt)
+		if err == nil {
+			runtimeLoadCount.Add(1)
+			rt.emit(EventLoaded)
+		}
+		return rt, err
+	}
 	md, err := metadata.Load(opt.ModelDir)
 	if err != nil {
 		return nil, fmt.Errorf("pipeline: %w", err)
@@ -164,7 +229,7 @@ func LoadInitialise(opt Options) (*Runtime, error) {
 		return nil, fmt.Errorf("pipeline: load dacvae_decoder: %w", err)
 	}
 
-	return &Runtime{
+	rt := &Runtime{
 		md:         md,
 		opt:        opt,
 		textTok:    textTok,
@@ -176,15 +241,48 @@ func LoadInitialise(opt Options) (*Runtime, error) {
 		dacEnc:     dacEnc,
 		ditStep:    ditStep,
 		decDAC:     decDAC,
-	}, nil
+		closeDone:  make(chan struct{}),
+		observer:   opt.Observer,
+	}
+	runtimeLoadCount.Add(1)
+	rt.emit(EventLoaded)
+	return rt, nil
 }
 
 // Close releases all ONNX sessions.
 func (r *Runtime) Close() {
+	r.mu.Lock()
 	if r.closed {
+		done := r.closeDone
+		r.mu.Unlock()
+		if done != nil {
+			<-done
+		}
 		return
 	}
 	r.closed = true
+	if r.closeDone == nil {
+		r.closeDone = make(chan struct{})
+	}
+	done := r.closeDone
+	r.mu.Unlock()
+	r.emit(EventCloseStart)
+	defer func() {
+		r.emit(EventCloseEnd)
+		close(done)
+	}()
+	// A caller may cancel while ORT is still inside Run. Destroying a session
+	// before every active call has returned is unsafe and can poison subsequent
+	// requests in the same process.
+	if r.closeWaitHook != nil {
+		r.closeWaitHook()
+	}
+	r.inflight.Wait()
+	runtimeCloseCount.Add(1)
+	if r.v4 != nil {
+		r.v4.close()
+		return
+	}
 	if r.textEnc != nil {
 		r.textEnc.Destroy()
 	}
@@ -211,11 +309,48 @@ func (r *Runtime) Close() {
 // Synthesize runs the full inference pipeline and writes a 16-bit PCM
 // WAV file to the path specified in Options.OutputWAV.
 func (r *Runtime) Synthesize() error {
+	return r.SynthesizeWithOptions(Options{})
+}
+
+// SynthesizeWithOptions runs inference with the supplied per-request options
+// while retaining the loaded sessions. Services use this for a multi-sentence
+// Talk so model/ref assets are loaded once per Talk, not once per sentence.
+// Callers must serialize calls on a Runtime and must not close it until this
+// method returns; the service owns that lifetime explicitly.
+func (r *Runtime) SynthesizeWithOptions(opt Options) error {
+	r.mu.Lock()
 	if r.closed {
+		r.mu.Unlock()
 		return fmt.Errorf("pipeline: runtime closed")
 	}
+	if !isZeroOptions(opt) {
+		r.opt = opt
+	}
+	effective := r.opt
+	observer := r.observer
+	r.inflight.Add(1)
+	r.mu.Unlock()
+	defer r.inflight.Done()
+	if observer != nil {
+		observer(EventSentenceStart)
+		observer(EventInferenceStart)
+		defer func() {
+			observer(EventInferenceEnd)
+			observer(EventSentenceEnd)
+		}()
+	}
+	// The ONNX sessions are not generally safe for overlapping requests. This
+	// also makes option updates deterministic for callers that use one Runtime.
+	r.runMu.Lock()
+	defer r.runMu.Unlock()
+	opt = effective
+	if r.v4 != nil {
+		r.v4.opt = effective
+	}
+	if r.v4 != nil {
+		return r.v4.synthesize()
+	}
 	md := r.md
-	opt := r.opt
 
 	// Step 1: Tokenize text
 	textIDs, textMask := r.textTok.EncodePadded(opt.Text, 256)
@@ -383,6 +518,20 @@ func (r *Runtime) Synthesize() error {
 		return fmt.Errorf("pipeline: write wav: %w", err)
 	}
 	return nil
+}
+
+func isZeroOptions(opt Options) bool {
+	return opt.Text == "" && opt.Caption == "" && opt.OutputWAV == "" &&
+		opt.ModelDir == "" && opt.Seed == 0 && opt.NumSteps == 0 &&
+		opt.Seconds == 0 && opt.CfgText == 0 && opt.CfgCaption == 0 &&
+		opt.RefWAV == "" && opt.CfgSpeaker == 0 && opt.DurationScale == 0 &&
+		opt.Observer == nil
+}
+
+func (r *Runtime) emit(event RuntimeEvent) {
+	if r.observer != nil {
+		r.observer(event)
+	}
 }
 
 func (r *Runtime) runTextEncoder(ids []int64, mask []bool, seqLen int64) ([]float32, error) {

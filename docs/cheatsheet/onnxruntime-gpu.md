@@ -84,7 +84,7 @@ session, err := onnxruntime_go.NewDynamicAdvancedSession(
 CPU:
 
 ```powershell
-mise x -- go run ./cmd/local_smoketest
+ mise run tts-smoke
 ```
 
 CUDA:
@@ -92,14 +92,14 @@ CUDA:
 ```powershell
 $env:FM_RADIO_ORT_EP = 'cuda'
 $env:FM_RADIO_ORT_LIB = 'E:\programming\AI_generative\fm-live-radio\third_party\onnxruntime-gpu\onnxruntime-win-x64-gpu-1.26.0\lib\onnxruntime.dll'
-mise x -- go run ./cmd/local_smoketest
+mise x -- go run ./cmd/tts-smoke --service --model model/irodori-v4.1 --ep cuda --steps 2 --seconds 0.5
 ```
 
 Auto:
 
 ```powershell
 $env:FM_RADIO_ORT_EP = 'auto'
-mise x -- go run ./cmd/local_smoketest
+mise x -- go run ./cmd/tts-smoke --service --model model/irodori-v4.1 --ep auto --steps 2 --seconds 0.5
 ```
 
 ## Update Conditions

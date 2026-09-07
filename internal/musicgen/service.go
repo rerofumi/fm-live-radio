@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"fm-live-radio/internal/domain"
@@ -22,10 +23,26 @@ type Result struct {
 	Genre     string
 }
 
-type Service struct{}
+type Service struct {
+	observerMu sync.RWMutex
+	observer   sa3.EventObserver
+}
 
 func New() *Service {
 	return &Service{}
+}
+
+// SetObserver installs diagnostic runtime events for verification harnesses.
+func (s *Service) SetObserver(observer sa3.EventObserver) {
+	s.observerMu.Lock()
+	s.observer = observer
+	s.observerMu.Unlock()
+}
+
+func (s *Service) observerSnapshot() sa3.EventObserver {
+	s.observerMu.RLock()
+	defer s.observerMu.RUnlock()
+	return s.observer
 }
 
 func (s *Service) Generate(ctx context.Context, cfg domain.AppConfig) (Result, error) {
@@ -53,6 +70,7 @@ func (s *Service) Generate(ctx context.Context, cfg domain.AppConfig) (Result, e
 	opt.Seed = seed
 	opt.ModelDir = cfg.StableAudio3.ModelDir
 	opt.OutputWAV = outPath
+	opt.Observer = s.observerSnapshot()
 
 	rt, err := sa3.LoadInitialise(opt)
 	if err != nil {
@@ -66,10 +84,26 @@ func (s *Service) Generate(ctx context.Context, cfg domain.AppConfig) (Result, e
 	}()
 	select {
 	case err := <-done:
+		if observer := s.observerSnapshot(); observer != nil {
+			observer(sa3.EventServiceJoined)
+		}
+		if ctx.Err() != nil {
+			_ = os.Remove(outPath)
+			return Result{}, ctx.Err()
+		}
 		if err != nil {
+			_ = os.Remove(outPath)
 			return Result{}, err
 		}
 	case <-ctx.Done():
+		// Stable Audio has no portable in-flight abort API. Join the inference
+		// goroutine before the deferred Runtime.Close, and never publish a WAV
+		// that completed after cancellation.
+		_ = <-done
+		if observer := s.observerSnapshot(); observer != nil {
+			observer(sa3.EventServiceJoined)
+		}
+		_ = os.Remove(outPath)
 		return Result{}, ctx.Err()
 	}
 

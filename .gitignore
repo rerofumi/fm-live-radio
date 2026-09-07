@@ -4,3 +4,8 @@ frontend/dist
 model/
 generate_music/
 third_party/
+
+# Local verification artifacts: logs, WAVs, measurements and working reports.
+/evidence/
+/docs/**/evidence/
+

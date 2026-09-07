@@ -86,8 +86,18 @@ func (a *App) startup(ctx context.Context) {
 func (a *App) shutdown(ctx context.Context) {
 	a.mu.Lock()
 	as := a.audioSrv
+	p := a.player
 	a.audioSrv = nil
+	a.player = nil
+	a.talkSvc = nil
+	a.musicSvc = nil
 	a.mu.Unlock()
+
+	// Stop all player-owned Talk/BGM/prefetch work and join the inference
+	// goroutines before destroying the process-wide ORT environment.
+	if p != nil {
+		p.Shutdown()
+	}
 
 	if as != nil {
 		_ = as.Close(ctx)
