@@ -45,3 +45,15 @@ These links were revalidated in `tts-research` on 2026-06-12 and copied here as 
 | https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/crossOrigin | MDN official docs | 2026-06-13 | `frontend-visualizer.md` | Required CORS mode behavior for media element resource fetches |
 | https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/captureStream | MDN official docs | 2026-06-13 | `frontend-visualizer.md` | `captureStream()` capability and Limited availability status |
 | https://wails.io/docs/guides/windows/ | Wails official docs | 2026-06-13 | `frontend-visualizer.md` | Windows Wails runtime dependency on Microsoft WebView2 |
+
+## Irodori v4 / v4.1 調査（2026-09-07）
+
+関連資料: `irodori-v4-migration.md`。以下は一次資料。実行証拠は同資料から辿る。
+
+| URL | 種類 | 確認日 | 用途 |
+| --- | --- | --- | --- |
+| https://huggingface.co/Aratako/Irodori-TTS-v4-Small/blob/4c92c7ee2bb15c19a97cf4e86d24fd6bf33b0135/README.md | 公式モデルカード | 2026-09-07 | v4構造・v4.1推奨 |
+| https://huggingface.co/Aratako/Irodori-TTS-v4.1-Small/blob/2b28324dc263ed5e6638b3cf3dd94c82ead07b4b/README.md | 公式モデルカード | 2026-09-07 | duration更新・評価範囲・制約 |
+| https://github.com/Aratako/Irodori-TTS/tree/8224dafb46d0aba89209a8f905f1cb7e3299d9c1 | 公式推論実装 | 2026-09-07 | 実行したRuntimeKey/SamplingRequest、model config、依存 |
+| https://github.com/mtsmfm/Irodori-TTS-ONNX/tree/5df35d8720f810902971745a5ad961ff436bd73c | 既存exporter一次ソース | 2026-09-07 | wrapper/APIと旧fork固定の確認 |
+| https://github.com/Aratako/Irodori-TTS-Server | 公式サーバー | 2026-09-07 | 別プロセス案の存在確認のみ。API実行未検証・未採用 |

@@ -1,0 +1,26 @@
+W0907 21:20:17.368000 30684 .venv\Lib\site-packages\torch\distributed\elastic\multiprocessing\redirects.py:29] NOTE: Redirects are currently not supported in Windows or MacOs.
+Traceback (most recent call last):
+  File "E:\programming\AI_generative\fm-live-radio\docs\plan_20260907_irodori_v4\evidence\exporter_probe.py", line 14, in <module>
+    wrapper=TextEncoderModule(model)
+            ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\programming\AI_generative\fm-live-radio\third_party\irodori-v4-research\Irodori-TTS-ONNX-5df35d8720f810902971745a5ad961ff436bd73c\onnx_exporter\irodori_tts_onnx\wrappers.py", line 86, in __init__
+    self.text_embedding = model.text_encoder.text_embedding
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\programming\AI_generative\fm-live-radio\third_party\irodori-v4-research\Irodori-TTS-8224dafb46d0aba89209a8f905f1cb7e3299d9c1\.venv\Lib\site-packages\torch\nn\modules\module.py", line 1965, in __getattr__
+    raise AttributeError(
+AttributeError: 'PretrainedConditionProjector' object has no attribute 'text_embedding'
+{
+  "exporter_revision": "5df35d8720f810902971745a5ad961ff436bd73c",
+  "upstream_revision": "8224dafb46d0aba89209a8f905f1cb7e3299d9c1",
+  "kind": "current exporter wrappers against official v4.1 loaded model; not full exporter CLI",
+  "text_encoder_class": "PretrainedConditionProjector",
+  "spec_keys": [
+    "text_encoder",
+    "dacvae_encoder",
+    "dacvae_decoder",
+    "caption_encoder",
+    "dit_step"
+  ],
+  "wrapper_construct": "failed",
+  "error": "AttributeError(\"'PretrainedConditionProjector' object has no attribute 'text_embedding'\")"
+}

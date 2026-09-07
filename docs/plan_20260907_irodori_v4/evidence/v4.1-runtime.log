@@ -1,0 +1,12 @@
+warning: Using incompatible environment (`third_party\irodori-v4-research\Irodori-TTS-8224dafb46d0aba89209a8f905f1cb7e3299d9c1\.venv`) due to `--no-sync` (The project environment's Python version does not satisfy the request: `Python 3.10`)
+DOWNLOAD Irodori-TTS-v4.1-Small 2b28324dc263ed5e6638b3cf3dd94c82ead07b4b
+
+Fetching 3 files:   0%|          | 0/3 [00:00<?, ?it/s]
+Fetching 3 files:  33%|###3      | 1/3 [00:31<01:02, 31.04s/it]
+Fetching 3 files: 100%|##########| 3/3 [00:31<00:00, 10.35s/it]
+ENV 2.10.0+cu128 12.8 NVIDIA GeForce RTX 5090
+Traceback (most recent call last):
+  File "E:\programming\AI_generative\fm-live-radio\docs\plan_20260907_irodori_v4\evidence\runtime_probe.py", line 28, in <module>
+    print('TOKENIZER_PARITY',[(r['text'],r['match']) for r in comp],flush=True)
+UnicodeEncodeError: 'cp932' codec can't encode character '\U0001f92d' in position 117: illegal multibyte sequence
+TOKENIZER_PARITY 
