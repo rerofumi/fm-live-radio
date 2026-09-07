@@ -22,13 +22,14 @@ import (
 // Piece is one entry in the Unigram vocab.
 type Piece struct {
 	ID    int
-	Score float32
+	Score float64
 }
 
 // Tokenizer is an Unigram tokenizer loaded from a tokenizer.json file.
 type Tokenizer struct {
 	vocab           map[string]Piece
 	tokenToID       map[string]int
+	addedTokens     map[string]int
 	byteTokenToID   map[int]int
 	maxPieceBytes   int
 	unkID           int
@@ -36,7 +37,12 @@ type Tokenizer struct {
 	padID           int
 	addBOS          bool
 	byteFallback    bool
-	normalizerSpace string // U+2581 lower one-eighth block
+	metaspace       string
+	prependMeta     bool
+	normalizeSpace  bool
+	normalizePrefix bool
+	prefixIfNotNL   bool
+	legacyV3        bool
 }
 
 // FromFile loads an Unigram tokenizer.json file.
@@ -70,16 +76,87 @@ func FromBytes(data []byte, addBOS bool) (*Tokenizer, error) {
 	if model.Type != "Unigram" {
 		return nil, fmt.Errorf("tokenizer: only Unigram is supported, got %q", model.Type)
 	}
+	// The v3 tokenizer applies its metaspace replacement in the normalizer,
+	// while v4 applies it in a Metaspace pre-tokenizer with prepend_scheme=never.
+	// Read those settings instead of assuming the v3 behavior for every model.
+	type metaspaceConfig struct {
+		Type          string `json:"type"`
+		Replacement   string `json:"replacement"`
+		PrependScheme string `json:"prepend_scheme"`
+	}
+	var pre metaspaceConfig
+	if raw, ok := root["pre_tokenizer"]; ok && string(raw) != "null" {
+		if err := json.Unmarshal(raw, &pre); err != nil {
+			return nil, fmt.Errorf("tokenizer: parse pre_tokenizer: %w", err)
+		}
+		if pre.Type != "Metaspace" {
+			return nil, fmt.Errorf("tokenizer: unsupported pre_tokenizer %q", pre.Type)
+		}
+	}
+	var norm struct {
+		Type        string `json:"type"`
+		Normalizers []struct {
+			Type    string          `json:"type"`
+			Pattern json.RawMessage `json:"pattern"`
+			Content string          `json:"content"`
+		} `json:"normalizers"`
+	}
+	normalizerPresent := false
+	if raw, ok := root["normalizer"]; ok && string(raw) != "null" {
+		normalizerPresent = true
+		if err := json.Unmarshal(raw, &norm); err != nil {
+			return nil, fmt.Errorf("tokenizer: parse normalizer: %w", err)
+		}
+		if norm.Type != "Sequence" {
+			return nil, fmt.Errorf("tokenizer: unsupported normalizer %q", norm.Type)
+		}
+	}
+	space := pre.Replacement
+	if space == "" {
+		space = "▁"
+	}
 	tok := &Tokenizer{
-		vocab:           make(map[string]Piece, len(model.Vocab)),
-		tokenToID:       make(map[string]int, len(model.Vocab)),
-		byteTokenToID:   make(map[int]int, 256),
-		unkID:           0,
-		bosID:           1,
-		padID:           4,
-		addBOS:          addBOS,
-		byteFallback:    model.ByteFallback,
-		normalizerSpace: "\u2581",
+		vocab:          make(map[string]Piece, len(model.Vocab)),
+		tokenToID:      make(map[string]int, len(model.Vocab)),
+		addedTokens:    make(map[string]int),
+		byteTokenToID:  make(map[int]int, 256),
+		unkID:          0,
+		bosID:          -1,
+		padID:          -1,
+		addBOS:         addBOS,
+		byteFallback:   model.ByteFallback,
+		metaspace:      space,
+		prependMeta:    pre.PrependScheme == "always" || pre.PrependScheme == "first",
+		normalizeSpace: normalizerPresent || pre.Type == "Metaspace",
+		legacyV3:       normalizerPresent && pre.Type == "",
+	}
+	if pre.Type == "Metaspace" && pre.PrependScheme == "always" {
+		tok.prependMeta = true
+	}
+	if pre.Type == "Metaspace" && pre.PrependScheme == "never" {
+		tok.prependMeta = false
+	}
+	for _, n := range norm.Normalizers {
+		if n.Type != "Replace" {
+			return nil, fmt.Errorf("tokenizer: unsupported normalizer entry %q", n.Type)
+		}
+		var pattern string
+		if err := json.Unmarshal(n.Pattern, &pattern); err != nil {
+			var object map[string]string
+			if err := json.Unmarshal(n.Pattern, &object); err != nil {
+				return nil, fmt.Errorf("tokenizer: parse normalizer pattern: %w", err)
+			}
+			pattern = object["Regex"]
+		}
+		if pattern == " " {
+			// v3 uses an explicit normalizer replacement for ASCII spaces.
+			tok.metaspace = n.Content
+		} else if strings.Contains(pattern, "^") {
+			tok.normalizePrefix = true
+			tok.prefixIfNotNL = strings.Contains(pattern, "(?<!\\n)")
+		} else {
+			return nil, fmt.Errorf("tokenizer: unsupported normalizer pattern %q", pattern)
+		}
 	}
 	if model.UnkID != nil {
 		tok.unkID = *model.UnkID
@@ -96,7 +173,7 @@ func FromBytes(data []byte, addBOS bool) (*Tokenizer, error) {
 		if err := json.Unmarshal(entry[1], &score); err != nil {
 			return nil, fmt.Errorf("tokenizer: vocab[%d] score: %w", id, err)
 		}
-		tok.vocab[piece] = Piece{ID: id, Score: float32(score)}
+		tok.vocab[piece] = Piece{ID: id, Score: score}
 		tok.tokenToID[piece] = id
 		if len(piece) > tok.maxPieceBytes {
 			tok.maxPieceBytes = len(piece)
@@ -113,6 +190,7 @@ func FromBytes(data []byte, addBOS bool) (*Tokenizer, error) {
 		}
 		for _, a := range added {
 			tok.tokenToID[a.Content] = a.ID
+			tok.addedTokens[a.Content] = a.ID
 		}
 	}
 	// Byte fallback tables
@@ -125,6 +203,9 @@ func FromBytes(data []byte, addBOS bool) (*Tokenizer, error) {
 	// Resolve <s> / <PAD|LLM-jp>
 	if id, ok := tok.tokenToID["<s>"]; ok {
 		tok.bosID = id
+	}
+	if id, ok := tok.tokenToID["<pad>"]; ok {
+		tok.padID = id
 	}
 	if id, ok := tok.tokenToID["<PAD|LLM-jp>"]; ok {
 		tok.padID = id
@@ -150,11 +231,108 @@ func (t *Tokenizer) UNKID() int { return t.unkID }
 // Encode runs SentencePiece Unigram Viterbi encoding with byte
 // fallback. It returns the raw token ids (no BOS prefix).
 func (t *Tokenizer) Encode(text string) []int {
-	norm := t.normalize(text)
+	if t.legacyV3 {
+		return t.encodeLegacyV3(text)
+	}
+	// AddedToken matching happens before normalizer/pre-tokenizer processing in
+	// tokenizers. Split literal added tokens first so <s>/<pad>/chat markers are
+	// emitted as one token and do not gain a metaspace prefix.
+	parts := t.splitAddedTokens(text)
+	ids := make([]int, 0, len(text))
+	for _, part := range parts {
+		if part.id >= 0 {
+			ids = append(ids, part.id)
+			continue
+		}
+		ids = append(ids, t.encodeNormalized(part.text)...)
+	}
+	return ids
+}
+
+// encodeLegacyV3 preserves the pre-WP-2 Unigram implementation for the v3
+// model. REQ-02 requires the existing v3 token column to remain unchanged;
+// v4's corrected byte fallback and score precision are deliberately scoped
+// to the versioned v4 path above.
+func (t *Tokenizer) encodeLegacyV3(text string) []int {
+	norm := t.normalizeLegacyV3(text)
 	boundaries := utf8Boundaries(norm)
 	n := len(boundaries) - 1
 	negInf := float32(math.Inf(-1))
 	best := make([]float32, n+1)
+	prev := make([]int, n+1)
+	prevID := make([]int, n+1)
+	for i := range best {
+		best[i] = negInf
+	}
+	best[0] = 0
+	for i := 0; i < n; i++ {
+		if math.IsInf(float64(best[i]), -1) {
+			continue
+		}
+		start := boundaries[i]
+		for j := i + 1; j <= n; j++ {
+			end := boundaries[j]
+			if end-start > t.maxPieceBytes {
+				break
+			}
+			if p, ok := t.vocab[norm[start:end]]; ok {
+				score := best[i] + float32(p.Score)
+				if score > best[j] {
+					best[j] = score
+					prev[j] = i
+					prevID[j] = p.ID
+				}
+			}
+		}
+		if !t.byteFallback {
+			continue
+		}
+		byteEnd := boundaries[i+1]
+		for b := start; b < byteEnd; b++ {
+			fallbackID, has := t.byteTokenToID[int(norm[b])]
+			if !has {
+				fallbackID = t.unkID
+			}
+			score := best[i] - 100.0 - float32(b-start)*0.001
+			if score > best[i+1] {
+				best[i+1] = score
+				prev[i+1] = i
+				prevID[i+1] = fallbackID
+			}
+		}
+	}
+	if math.IsInf(float64(best[n]), -1) {
+		return []int{t.unkID}
+	}
+	ids := make([]int, 0, n)
+	for cur := n; cur > 0; cur = prev[cur] {
+		ids = append(ids, prevID[cur])
+	}
+	for i, j := 0, len(ids)-1; i < j; i, j = i+1, j-1 {
+		ids[i], ids[j] = ids[j], ids[i]
+	}
+	return ids
+}
+
+func (t *Tokenizer) normalizeLegacyV3(text string) string {
+	var b strings.Builder
+	b.Grow(len(text) + len(t.metaspace))
+	b.WriteString(t.metaspace)
+	for _, r := range text {
+		if r == ' ' {
+			b.WriteString(t.metaspace)
+		} else {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+func (t *Tokenizer) encodeNormalized(text string) []int {
+	norm := t.normalize(text)
+	n := len(norm)
+	negInf := math.Inf(-1)
+	best := make([]float64, n+1)
 	prev := make([]int, n+1)
 	prevID := make([]int, n+1)
 	prevByte := make([]bool, n+1)
@@ -164,17 +342,18 @@ func (t *Tokenizer) Encode(text string) []int {
 	best[0] = 0
 
 	for i := 0; i < n; i++ {
-		if math.IsInf(float64(best[i]), -1) {
+		if math.IsInf(best[i], -1) {
 			continue
 		}
-		start := boundaries[i]
-		// Multi-byte vocab matches.
-		for j := i + 1; j <= n; j++ {
-			end := boundaries[j]
-			if end-start > t.maxPieceBytes {
+		// Multi-byte vocab matches only at valid UTF-8 boundaries.
+		for j := i + 1; j <= n && j-i <= t.maxPieceBytes; j++ {
+			piece := norm[i:j]
+			if !utf8.ValidString(piece) {
+				continue
+			}
+			if !utf8.ValidString(norm[:i]) || (j < n && !utf8.ValidString(norm[:j])) {
 				break
 			}
-			piece := norm[start:end]
 			if p, ok := t.vocab[piece]; ok {
 				score := best[i] + p.Score
 				if score > best[j] {
@@ -190,25 +369,23 @@ func (t *Tokenizer) Encode(text string) []int {
 		if !t.byteFallback {
 			continue
 		}
-		byteEnd := boundaries[i+1]
-		for b := start; b < byteEnd; b++ {
-			u := int(norm[b])
-			fallbackID, has := t.byteTokenToID[u]
-			if !has {
-				fallbackID = t.unkID
-			}
-			// Match the C++ reference penalty shape: -100 - 0.001*offset
-			score := best[i] - 100.0 - float32(b-start)*0.001
-			if score > best[i+1] {
-				best[i+1] = score
-				prev[i+1] = i
-				prevID[i+1] = fallbackID
-				prevByte[i+1] = true
-			}
+		u := int(norm[i])
+		fallbackID, has := t.byteTokenToID[u]
+		if !has {
+			fallbackID = t.unkID
+		}
+		// Match the reference penalty shape. Unlike the old implementation,
+		// each byte advances the DP by one byte, preserving all UTF-8 bytes.
+		score := best[i] - 100.0
+		if score > best[i+1] {
+			best[i+1] = score
+			prev[i+1] = i
+			prevID[i+1] = fallbackID
+			prevByte[i+1] = true
 		}
 	}
 
-	if math.IsInf(float64(best[n]), -1) {
+	if math.IsInf(best[n], -1) {
 		return []int{t.unkID}
 	}
 	ids := make([]int, 0, n)
@@ -248,21 +425,75 @@ func (t *Tokenizer) EncodePadded(text string, maxLength int) (ids []int64, mask 
 	return ids, mask
 }
 
+// EncodePaddedChecked is the error-returning form used by callers that need
+// the same invalid-length contract as PretrainedTextTokenizer.batch_encode.
+func (t *Tokenizer) EncodePaddedChecked(text string, maxLength int) ([]int64, []bool, error) {
+	if maxLength <= 0 {
+		return nil, nil, fmt.Errorf("tokenizer: max_length must be > 0, got %d", maxLength)
+	}
+	ids, mask := t.EncodePadded(text, maxLength)
+	return ids, mask, nil
+}
+
 // normalize replaces ASCII spaces with the U+2581 lower one-eighth
 // block and prepends one such block (matching SentencePiece's
 // "metaspace" normaliser).
 func (t *Tokenizer) normalize(text string) string {
 	var b strings.Builder
-	b.Grow(len(text) + len(t.normalizerSpace))
-	b.WriteString(t.normalizerSpace)
+	b.Grow(len(text) + len(t.metaspace))
+	if t.normalizePrefix || t.prependMeta {
+		if !t.prefixIfNotNL || len(text) == 0 || text[0] != '\n' {
+			b.WriteString(t.metaspace)
+		}
+	}
 	for _, r := range text {
-		if r == ' ' {
-			b.WriteString(t.normalizerSpace)
+		if t.normalizeSpace && r == ' ' {
+			b.WriteString(t.metaspace)
 		} else {
 			b.WriteRune(r)
 		}
 	}
 	return b.String()
+}
+
+type addedPart struct {
+	text string
+	id   int
+}
+
+func (t *Tokenizer) splitAddedTokens(text string) []addedPart {
+	if len(t.addedTokens) == 0 {
+		return []addedPart{{text: text, id: -1}}
+	}
+	parts := make([]addedPart, 0, 2)
+	plainStart := 0
+	for i := 0; i < len(text); {
+		best := ""
+		bestID := -1
+		for token, id := range t.addedTokens {
+			if len(token) > len(best) && strings.HasPrefix(text[i:], token) {
+				best, bestID = token, id
+			}
+		}
+		if bestID < 0 {
+			_, size := utf8.DecodeRuneInString(text[i:])
+			if size <= 0 {
+				size = 1
+			}
+			i += size
+			continue
+		}
+		if i > plainStart {
+			parts = append(parts, addedPart{text: text[plainStart:i], id: -1})
+		}
+		parts = append(parts, addedPart{text: best, id: bestID})
+		i += len(best)
+		plainStart = i
+	}
+	if plainStart < len(text) || len(parts) == 0 {
+		parts = append(parts, addedPart{text: text[plainStart:], id: -1})
+	}
+	return parts
 }
 
 // utf8Boundaries returns the byte offsets of each UTF-8 codepoint

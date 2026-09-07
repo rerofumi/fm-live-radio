@@ -1,6 +1,6 @@
 # 実装仕様と段階的な移行手順
 
-対象: v4.1 第一候補 / Go + ONNX 維持。採用は **条件付き**。対応 exporter と ONNX graph の成功証拠はまだなく、WP-1 の Go 判定前に既定切替しない。
+対象: v4.1 第一候補 / Go + ONNX 維持。採用は **条件付き**。対応 exporter と6 ONNX graphの独立検証は成功。固定資産・手順を含むWP-1最終結果は90_statusを参照し、WP-2以降の全ゲート前に既定切替しない。
 
 ## 現行コードから変わる点
 
@@ -72,7 +72,22 @@ REQ-07–10。上流品質比較、Go/ORT parity、アプリ品質・性能、co
 
 既存コマンド: `mise install`、`mise x -- go test ./...`、`mise x -- npm --prefix frontend run build`、`mise run build`。未導入のfrontend依存は `mise x -- npm --prefix frontend ci`、Wailsが無ければ既存 `mise run setup` を使う。今回の実行はTTS周辺のgo testのみ。
 
-今後追加するtask（現在は存在しない）: `mise run tts-export-v4`（REQ-01/03）、`mise run tts-parity`（REQ-02/03/04）、`mise run tts-smoke`（REQ-05/06/07）、`mise run tts-benchmark`（REQ-08）、`mise run tts-e2e`（REQ-10）。taskは将来WPでmise.tomlに登録し、入力model/EP/seedを明示可能にする。品質聴取結果はREQ-09の別表に残す。
+WP-1で `mise run tts-export-v4` と `mise run tts-parity-v4`（REQ-01/03）を追加した。空の出力先からの完全な再作成は tools/irodori_export/README.md の取得・export・externalize・merge・parity手順に従う。今後のtaskは `tts-parity`（REQ-02/04）、`tts-smoke`（REQ-05/06/07）、`tts-benchmark`（REQ-08）、`tts-e2e`（REQ-10）で、後続WPで入力model/EP/seedを明示可能にする。品質聴取結果はREQ-09の別表に残す。
 
 全REQ合格後にREADME/現行requirement/specification/cheatsheetを更新する。今回作成した計画をそのまま現行仕様にコピーしない。
 
+## WP-1 実測による確定事項（2026-09-07）
+
+実装先は `tools/irodori_export/`。6 graphはtext/caption共有、speaker、duration、DiT、codec encoder/decoder。独立graph受入は [evidence/wp1-acceptance.md](evidence/wp1-acceptance.md) に記録する。
+
+- FP32/opset18、CUDAはTF32無効。codec hop=1920。speaker patch=4は切捨てで最小正常長4、未満は事前拒否の契約とする。
+- codec encoderはhop倍数を含む動的paddingが必要。入力長に応じたPython分岐のtrace固定を避ける。
+- WP-1の純ORT生成比較条件は既存narrator全10秒、max_ref_seconds=120、normalize=None、ensure_max=False、40step。全40stepの同一入力比較と公式durationとの差0を独立確認。WP-3で公式既定前後処理との差を明示して実装する。
+- 製品tokenizer/Go推論/設定/取消/品質/E2EはWP-2以降であり、今回の検証だけで既定値を変更しない。
+
+
+## WP-2 実装・独立確認（2026-09-08）
+
+既存Go tokenizerを拡張し、固定v4.1資産の設定を解釈する。v4のPAD=3、prepend_scheme=never、literal特殊token、byte単位Unigram経路とfloat64スコアを使用し、旧v3はlegacy分岐で従来の列を維持する。EncodePaddedCheckedを追加し、非正長をエラーにする。既存consumerのAPIとtext256/caption64は維持する。
+
+[WP-2独立受入](evidence/wp2-acceptance.md): 公式656正常条件＋4無効長、旧v3との656条件が一致。任意tokenizer形式の汎用対応は保証しない。新binding・依存・mise task追加なし。再生成と検証の実行手順は受入報告を参照。製品v4推論組込はWP-3であり、今回着手しない。

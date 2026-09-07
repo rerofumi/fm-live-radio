@@ -1,0 +1,2303 @@
+{
+  "schema_version": 2,
+  "started_at": "2026-09-07T14:35:20Z",
+  "threshold": {
+    "atol": 0.0001,
+    "rtol": 0.001
+  },
+  "providers": {
+    "available": [
+      "TensorrtExecutionProvider",
+      "CUDAExecutionProvider",
+      "CPUExecutionProvider"
+    ],
+    "cpu": true,
+    "cuda": true
+  },
+  "math": {
+    "pytorch_tf32": false,
+    "ort_cuda_use_tf32": 0
+  },
+  "graphs": {
+    "text_caption_encoder": [
+      {
+        "provider": "CPUExecutionProvider",
+        "graph": "text_caption_encoder",
+        "path": "text_caption_encoder.onnx",
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 9.5367431640625e-07,
+            "max_rel": 0.00020405789837241173,
+            "comparison": "allclose"
+          },
+          {
+            "index": 1,
+            "ok": true,
+            "max_abs": 9.5367431640625e-07,
+            "max_rel": 9.422836592420936e-05,
+            "comparison": "allclose"
+          }
+        ],
+        "output_shapes": [
+          [
+            1,
+            8,
+            512
+          ],
+          [
+            1,
+            12,
+            512
+          ]
+        ]
+      },
+      {
+        "provider": "CUDAExecutionProvider",
+        "graph": "text_caption_encoder",
+        "path": "text_caption_encoder.onnx",
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 1.0728836059570312e-06,
+            "max_rel": 0.00012179222539998591,
+            "comparison": "allclose"
+          },
+          {
+            "index": 1,
+            "ok": true,
+            "max_abs": 1.1920928955078125e-06,
+            "max_rel": 0.00013741792645305395,
+            "comparison": "allclose"
+          }
+        ],
+        "output_shapes": [
+          [
+            1,
+            8,
+            512
+          ],
+          [
+            1,
+            12,
+            512
+          ]
+        ]
+      }
+    ],
+    "speaker_encoder": [
+      {
+        "provider": "CPUExecutionProvider",
+        "graph": "speaker_encoder",
+        "path": "speaker_encoder.onnx",
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 3.4570693969726562e-06,
+            "max_rel": 0.006689981557428837,
+            "comparison": "allclose"
+          },
+          {
+            "index": 1,
+            "ok": true,
+            "comparison": "exact_bool"
+          }
+        ],
+        "output_shapes": [
+          [
+            1,
+            5,
+            768
+          ],
+          [
+            1,
+            5
+          ]
+        ]
+      },
+      {
+        "provider": "CUDAExecutionProvider",
+        "graph": "speaker_encoder",
+        "path": "speaker_encoder.onnx",
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 3.107823431491852e-06,
+            "max_rel": 0.021604295819997787,
+            "comparison": "allclose"
+          },
+          {
+            "index": 1,
+            "ok": true,
+            "comparison": "exact_bool"
+          }
+        ],
+        "output_shapes": [
+          [
+            1,
+            5,
+            768
+          ],
+          [
+            1,
+            5
+          ]
+        ]
+      }
+    ],
+    "duration_predictor": [
+      {
+        "provider": "CPUExecutionProvider",
+        "graph": "duration_predictor",
+        "path": "duration_predictor.onnx",
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 0.0,
+            "max_rel": 0.0,
+            "comparison": "allclose"
+          }
+        ],
+        "output_shapes": [
+          [
+            1
+          ]
+        ]
+      },
+      {
+        "provider": "CUDAExecutionProvider",
+        "graph": "duration_predictor",
+        "path": "duration_predictor.onnx",
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 4.76837158203125e-07,
+            "max_rel": 1.1490551088400025e-07,
+            "comparison": "allclose"
+          }
+        ],
+        "output_shapes": [
+          [
+            1
+          ]
+        ]
+      }
+    ],
+    "dit_step": [
+      {
+        "provider": "CPUExecutionProvider",
+        "graph": "dit_step",
+        "path": "dit_step.onnx",
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 4.541128873825073e-06,
+            "max_rel": 0.00017144849698524922,
+            "comparison": "allclose"
+          }
+        ],
+        "output_shapes": [
+          [
+            1,
+            21,
+            32
+          ]
+        ]
+      },
+      {
+        "provider": "CUDAExecutionProvider",
+        "graph": "dit_step",
+        "path": "dit_step.onnx",
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 5.159527063369751e-06,
+            "max_rel": 0.00020955766376573592,
+            "comparison": "allclose"
+          }
+        ],
+        "output_shapes": [
+          [
+            1,
+            21,
+            32
+          ]
+        ]
+      }
+    ],
+    "codec_encoder": [
+      {
+        "provider": "CPUExecutionProvider",
+        "graph": "codec_encoder",
+        "path": "codec_encoder.onnx",
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 4.76837158203125e-06,
+            "max_rel": 0.0003739346284419298,
+            "comparison": "allclose"
+          }
+        ],
+        "output_shapes": [
+          [
+            1,
+            2,
+            32
+          ]
+        ]
+      },
+      {
+        "provider": "CUDAExecutionProvider",
+        "graph": "codec_encoder",
+        "path": "codec_encoder.onnx",
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 1.0609626770019531e-05,
+            "max_rel": 0.0009885025210678577,
+            "comparison": "allclose"
+          }
+        ],
+        "output_shapes": [
+          [
+            1,
+            2,
+            32
+          ]
+        ]
+      }
+    ],
+    "codec_decoder": [
+      {
+        "provider": "CPUExecutionProvider",
+        "graph": "codec_decoder",
+        "path": "codec_decoder.onnx",
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 5.438923835754395e-07,
+            "max_rel": 0.07183271646499634,
+            "comparison": "allclose"
+          }
+        ],
+        "output_shapes": [
+          [
+            1,
+            1,
+            15360
+          ]
+        ]
+      },
+      {
+        "provider": "CUDAExecutionProvider",
+        "graph": "codec_decoder",
+        "path": "codec_decoder.onnx",
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 1.087784767150879e-06,
+            "max_rel": 0.4061085879802704,
+            "comparison": "allclose"
+          }
+        ],
+        "output_shapes": [
+          [
+            1,
+            1,
+            15360
+          ]
+        ]
+      }
+    ]
+  },
+  "dynamic_length": {
+    "text_caption_encoder": [
+      {
+        "provider": "CPUExecutionProvider",
+        "status": "executed",
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 1.1920928955078125e-06,
+            "max_rel": 0.0002612141543067992,
+            "comparison": "allclose"
+          },
+          {
+            "index": 1,
+            "ok": true,
+            "max_abs": 1.1920928955078125e-06,
+            "max_rel": 0.00010296951222699136,
+            "comparison": "allclose"
+          }
+        ],
+        "shapes": [
+          [
+            1,
+            5,
+            512
+          ],
+          [
+            1,
+            9,
+            512
+          ]
+        ]
+      },
+      {
+        "provider": "CUDAExecutionProvider",
+        "status": "executed",
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 1.1920928955078125e-06,
+            "max_rel": 0.00013247183233033866,
+            "comparison": "allclose"
+          },
+          {
+            "index": 1,
+            "ok": true,
+            "max_abs": 9.5367431640625e-07,
+            "max_rel": 0.00012880758731625974,
+            "comparison": "allclose"
+          }
+        ],
+        "shapes": [
+          [
+            1,
+            5,
+            512
+          ],
+          [
+            1,
+            9,
+            512
+          ]
+        ]
+      }
+    ],
+    "speaker_encoder": [
+      {
+        "provider": "CPUExecutionProvider",
+        "status": "executed",
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 4.06801700592041e-06,
+            "max_rel": 0.019090425223112106,
+            "comparison": "allclose"
+          },
+          {
+            "index": 1,
+            "ok": true,
+            "comparison": "exact_bool"
+          }
+        ],
+        "shapes": [
+          [
+            1,
+            3,
+            768
+          ],
+          [
+            1,
+            3
+          ]
+        ]
+      },
+      {
+        "provider": "CUDAExecutionProvider",
+        "status": "executed",
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 2.7418136596679688e-06,
+            "max_rel": 0.009109167382121086,
+            "comparison": "allclose"
+          },
+          {
+            "index": 1,
+            "ok": true,
+            "comparison": "exact_bool"
+          }
+        ],
+        "shapes": [
+          [
+            1,
+            3,
+            768
+          ],
+          [
+            1,
+            3
+          ]
+        ]
+      }
+    ],
+    "dit_step": [
+      {
+        "provider": "CPUExecutionProvider",
+        "status": "executed",
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 4.172325134277344e-06,
+            "max_rel": 0.002455765614286065,
+            "comparison": "allclose"
+          }
+        ],
+        "shapes": [
+          [
+            1,
+            13,
+            32
+          ]
+        ]
+      },
+      {
+        "provider": "CUDAExecutionProvider",
+        "status": "executed",
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 3.9637088775634766e-06,
+            "max_rel": 0.0020799553021788597,
+            "comparison": "allclose"
+          }
+        ],
+        "shapes": [
+          [
+            1,
+            13,
+            32
+          ]
+        ]
+      }
+    ],
+    "duration_predictor": [
+      {
+        "provider": "CPUExecutionProvider",
+        "status": "executed",
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 0.0,
+            "max_rel": 0.0,
+            "comparison": "allclose"
+          }
+        ],
+        "shapes": [
+          [
+            1
+          ]
+        ]
+      },
+      {
+        "provider": "CUDAExecutionProvider",
+        "status": "executed",
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 4.76837158203125e-07,
+            "max_rel": 1.4041769702544116e-07,
+            "comparison": "allclose"
+          }
+        ],
+        "shapes": [
+          [
+            1
+          ]
+        ]
+      }
+    ],
+    "codec_encoder": [
+      {
+        "provider": "CPUExecutionProvider",
+        "status": "executed",
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 4.76837158203125e-06,
+            "max_rel": 0.0003739346284419298,
+            "comparison": "allclose"
+          }
+        ],
+        "shapes": [
+          [
+            1,
+            2,
+            32
+          ]
+        ]
+      },
+      {
+        "provider": "CUDAExecutionProvider",
+        "status": "executed",
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 1.0609626770019531e-05,
+            "max_rel": 0.0009885025210678577,
+            "comparison": "allclose"
+          }
+        ],
+        "shapes": [
+          [
+            1,
+            2,
+            32
+          ]
+        ]
+      }
+    ],
+    "codec_decoder": [
+      {
+        "provider": "CPUExecutionProvider",
+        "status": "executed",
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 4.926696419715881e-07,
+            "max_rel": 0.009275296702980995,
+            "comparison": "allclose"
+          }
+        ],
+        "shapes": [
+          [
+            1,
+            1,
+            9600
+          ]
+        ]
+      },
+      {
+        "provider": "CUDAExecutionProvider",
+        "status": "executed",
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 8.977949619293213e-07,
+            "max_rel": 0.010646948590874672,
+            "comparison": "allclose"
+          }
+        ],
+        "shapes": [
+          [
+            1,
+            1,
+            9600
+          ]
+        ]
+      }
+    ]
+  },
+  "speaker_ref_boundary": {
+    "1": {
+      "CPUExecutionProvider": {
+        "ok": true,
+        "status": "expected_rejection",
+        "ort_error": "RuntimeException(\"[ONNXRuntimeError] : 6 : RUNTIME_EXCEPTION : Non-zero status code returned while running Mul node. Name:'/speaker_encoder/Mul' Status Message: D:\\\\a\\\\_work\\\\1\\\\s\\\\onnxruntime\\\\core/providers/cpu/math/element_wise_ops.h:666 onnxruntime::Broadcaster::Broadcaster largest <= 1 was false. Can broadcast 0 by 0 or 1. 4 is invalid.\\n\")",
+        "torch_error": "ValueError('Reference sequence too short for speaker_patch_size=4: seq_len=1')"
+      },
+      "CUDAExecutionProvider": {
+        "ok": true,
+        "status": "expected_rejection",
+        "ort_error": "RuntimeException(\"[ONNXRuntimeError] : 6 : RUNTIME_EXCEPTION : Non-zero status code returned while running ReduceSum node. Name:'/ReduceSum_3' Status Message: D:\\\\a\\\\_work\\\\1\\\\s\\\\onnxruntime\\\\core\\\\providers\\\\cuda\\\\reduction\\\\reduction_ops.cc:294 onnxruntime::cuda::PrepareForReduce input_dims[axis] != 0 was false. Can't reduce on dim with value of 0 if 'keepdims' is false. Invalid output shape would be produced. input_shape:{1,0}\\n\")",
+        "torch_error": "ValueError('Reference sequence too short for speaker_patch_size=4: seq_len=1')"
+      }
+    },
+    "3": {
+      "CPUExecutionProvider": {
+        "ok": true,
+        "status": "expected_rejection",
+        "ort_error": "RuntimeException(\"[ONNXRuntimeError] : 6 : RUNTIME_EXCEPTION : Non-zero status code returned while running Mul node. Name:'/speaker_encoder/Mul' Status Message: D:\\\\a\\\\_work\\\\1\\\\s\\\\onnxruntime\\\\core/providers/cpu/math/element_wise_ops.h:666 onnxruntime::Broadcaster::Broadcaster largest <= 1 was false. Can broadcast 0 by 0 or 1. 4 is invalid.\\n\")",
+        "torch_error": "ValueError('Reference sequence too short for speaker_patch_size=4: seq_len=3')"
+      },
+      "CUDAExecutionProvider": {
+        "ok": true,
+        "status": "expected_rejection",
+        "ort_error": "RuntimeException(\"[ONNXRuntimeError] : 6 : RUNTIME_EXCEPTION : Non-zero status code returned while running ReduceSum node. Name:'/ReduceSum_3' Status Message: D:\\\\a\\\\_work\\\\1\\\\s\\\\onnxruntime\\\\core\\\\providers\\\\cuda\\\\reduction\\\\reduction_ops.cc:294 onnxruntime::cuda::PrepareForReduce input_dims[axis] != 0 was false. Can't reduce on dim with value of 0 if 'keepdims' is false. Invalid output shape would be produced. input_shape:{1,0}\\n\")",
+        "torch_error": "ValueError('Reference sequence too short for speaker_patch_size=4: seq_len=3')"
+      }
+    },
+    "4": {
+      "CPUExecutionProvider": {
+        "ok": true,
+        "status": "executed",
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 3.933906555175781e-06,
+            "max_rel": 0.006031319964677095,
+            "comparison": "allclose"
+          },
+          {
+            "index": 1,
+            "ok": true,
+            "comparison": "exact_bool"
+          }
+        ],
+        "output_shapes": [
+          [
+            1,
+            2,
+            768
+          ],
+          [
+            1,
+            2
+          ]
+        ],
+        "expected_patched_length": 1
+      },
+      "CUDAExecutionProvider": {
+        "ok": true,
+        "status": "executed",
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 2.9802322387695312e-06,
+            "max_rel": 0.010797536000609398,
+            "comparison": "allclose"
+          },
+          {
+            "index": 1,
+            "ok": true,
+            "comparison": "exact_bool"
+          }
+        ],
+        "output_shapes": [
+          [
+            1,
+            2,
+            768
+          ],
+          [
+            1,
+            2
+          ]
+        ],
+        "expected_patched_length": 1
+      }
+    },
+    "5": {
+      "CPUExecutionProvider": {
+        "ok": true,
+        "status": "executed",
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 3.933906555175781e-06,
+            "max_rel": 0.006031319964677095,
+            "comparison": "allclose"
+          },
+          {
+            "index": 1,
+            "ok": true,
+            "comparison": "exact_bool"
+          }
+        ],
+        "output_shapes": [
+          [
+            1,
+            2,
+            768
+          ],
+          [
+            1,
+            2
+          ]
+        ],
+        "expected_patched_length": 1
+      },
+      "CUDAExecutionProvider": {
+        "ok": true,
+        "status": "executed",
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 2.9802322387695312e-06,
+            "max_rel": 0.010797536000609398,
+            "comparison": "allclose"
+          },
+          {
+            "index": 1,
+            "ok": true,
+            "comparison": "exact_bool"
+          }
+        ],
+        "output_shapes": [
+          [
+            1,
+            2,
+            768
+          ],
+          [
+            1,
+            2
+          ]
+        ],
+        "expected_patched_length": 1
+      }
+    },
+    "7": {
+      "CPUExecutionProvider": {
+        "ok": true,
+        "status": "executed",
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 3.933906555175781e-06,
+            "max_rel": 0.006031319964677095,
+            "comparison": "allclose"
+          },
+          {
+            "index": 1,
+            "ok": true,
+            "comparison": "exact_bool"
+          }
+        ],
+        "output_shapes": [
+          [
+            1,
+            2,
+            768
+          ],
+          [
+            1,
+            2
+          ]
+        ],
+        "expected_patched_length": 1
+      },
+      "CUDAExecutionProvider": {
+        "ok": true,
+        "status": "executed",
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 2.9802322387695312e-06,
+            "max_rel": 0.010797536000609398,
+            "comparison": "allclose"
+          },
+          {
+            "index": 1,
+            "ok": true,
+            "comparison": "exact_bool"
+          }
+        ],
+        "output_shapes": [
+          [
+            1,
+            2,
+            768
+          ],
+          [
+            1,
+            2
+          ]
+        ],
+        "expected_patched_length": 1
+      }
+    },
+    "8": {
+      "CPUExecutionProvider": {
+        "ok": true,
+        "status": "executed",
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 4.06801700592041e-06,
+            "max_rel": 0.019090425223112106,
+            "comparison": "allclose"
+          },
+          {
+            "index": 1,
+            "ok": true,
+            "comparison": "exact_bool"
+          }
+        ],
+        "output_shapes": [
+          [
+            1,
+            3,
+            768
+          ],
+          [
+            1,
+            3
+          ]
+        ],
+        "expected_patched_length": 2
+      },
+      "CUDAExecutionProvider": {
+        "ok": true,
+        "status": "executed",
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 2.7418136596679688e-06,
+            "max_rel": 0.009109167382121086,
+            "comparison": "allclose"
+          },
+          {
+            "index": 1,
+            "ok": true,
+            "comparison": "exact_bool"
+          }
+        ],
+        "output_shapes": [
+          [
+            1,
+            3,
+            768
+          ],
+          [
+            1,
+            3
+          ]
+        ],
+        "expected_patched_length": 2
+      }
+    },
+    "9": {
+      "CPUExecutionProvider": {
+        "ok": true,
+        "status": "executed",
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 4.06801700592041e-06,
+            "max_rel": 0.019090425223112106,
+            "comparison": "allclose"
+          },
+          {
+            "index": 1,
+            "ok": true,
+            "comparison": "exact_bool"
+          }
+        ],
+        "output_shapes": [
+          [
+            1,
+            3,
+            768
+          ],
+          [
+            1,
+            3
+          ]
+        ],
+        "expected_patched_length": 2
+      },
+      "CUDAExecutionProvider": {
+        "ok": true,
+        "status": "executed",
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 2.7418136596679688e-06,
+            "max_rel": 0.009109167382121086,
+            "comparison": "allclose"
+          },
+          {
+            "index": 1,
+            "ok": true,
+            "comparison": "exact_bool"
+          }
+        ],
+        "output_shapes": [
+          [
+            1,
+            3,
+            768
+          ],
+          [
+            1,
+            3
+          ]
+        ],
+        "expected_patched_length": 2
+      }
+    },
+    "17": {
+      "CPUExecutionProvider": {
+        "ok": true,
+        "status": "executed",
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 3.4570693969726562e-06,
+            "max_rel": 0.006689981557428837,
+            "comparison": "allclose"
+          },
+          {
+            "index": 1,
+            "ok": true,
+            "comparison": "exact_bool"
+          }
+        ],
+        "output_shapes": [
+          [
+            1,
+            5,
+            768
+          ],
+          [
+            1,
+            5
+          ]
+        ],
+        "expected_patched_length": 4
+      },
+      "CUDAExecutionProvider": {
+        "ok": true,
+        "status": "executed",
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 3.107823431491852e-06,
+            "max_rel": 0.021604295819997787,
+            "comparison": "allclose"
+          },
+          {
+            "index": 1,
+            "ok": true,
+            "comparison": "exact_bool"
+          }
+        ],
+        "output_shapes": [
+          [
+            1,
+            5,
+            768
+          ],
+          [
+            1,
+            5
+          ]
+        ],
+        "expected_patched_length": 4
+      }
+    }
+  },
+  "codec_waveform_boundary": {
+    "1919": {
+      "CPUExecutionProvider": {
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 3.4421682357788086e-06,
+            "max_rel": 0.00013889398542232811,
+            "comparison": "allclose"
+          }
+        ],
+        "torch_shape": [
+          [
+            1,
+            1,
+            32
+          ]
+        ],
+        "ort_shape": [
+          [
+            1,
+            1,
+            32
+          ]
+        ]
+      },
+      "CUDAExecutionProvider": {
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 5.900859832763672e-06,
+            "max_rel": 0.0002705116057768464,
+            "comparison": "allclose"
+          }
+        ],
+        "torch_shape": [
+          [
+            1,
+            1,
+            32
+          ]
+        ],
+        "ort_shape": [
+          [
+            1,
+            1,
+            32
+          ]
+        ]
+      }
+    },
+    "1920": {
+      "CPUExecutionProvider": {
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 3.4421682357788086e-06,
+            "max_rel": 0.00013889398542232811,
+            "comparison": "allclose"
+          }
+        ],
+        "torch_shape": [
+          [
+            1,
+            1,
+            32
+          ]
+        ],
+        "ort_shape": [
+          [
+            1,
+            1,
+            32
+          ]
+        ]
+      },
+      "CUDAExecutionProvider": {
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 5.900859832763672e-06,
+            "max_rel": 0.0002705116057768464,
+            "comparison": "allclose"
+          }
+        ],
+        "torch_shape": [
+          [
+            1,
+            1,
+            32
+          ]
+        ],
+        "ort_shape": [
+          [
+            1,
+            1,
+            32
+          ]
+        ]
+      }
+    },
+    "1921": {
+      "CPUExecutionProvider": {
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 4.76837158203125e-06,
+            "max_rel": 0.0003739346284419298,
+            "comparison": "allclose"
+          }
+        ],
+        "torch_shape": [
+          [
+            1,
+            2,
+            32
+          ]
+        ],
+        "ort_shape": [
+          [
+            1,
+            2,
+            32
+          ]
+        ]
+      },
+      "CUDAExecutionProvider": {
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 1.0609626770019531e-05,
+            "max_rel": 0.0009885025210678577,
+            "comparison": "allclose"
+          }
+        ],
+        "torch_shape": [
+          [
+            1,
+            2,
+            32
+          ]
+        ],
+        "ort_shape": [
+          [
+            1,
+            2,
+            32
+          ]
+        ]
+      }
+    },
+    "479999": {
+      "CPUExecutionProvider": {
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 4.76837158203125e-06,
+            "max_rel": 0.00029427686240524054,
+            "comparison": "allclose"
+          }
+        ],
+        "torch_shape": [
+          [
+            1,
+            250,
+            32
+          ]
+        ],
+        "ort_shape": [
+          [
+            1,
+            250,
+            32
+          ]
+        ]
+      },
+      "CUDAExecutionProvider": {
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 7.987022399902344e-06,
+            "max_rel": 0.0021187050733715296,
+            "comparison": "allclose"
+          }
+        ],
+        "torch_shape": [
+          [
+            1,
+            250,
+            32
+          ]
+        ],
+        "ort_shape": [
+          [
+            1,
+            250,
+            32
+          ]
+        ]
+      }
+    },
+    "480000": {
+      "CPUExecutionProvider": {
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 4.76837158203125e-06,
+            "max_rel": 0.00029427686240524054,
+            "comparison": "allclose"
+          }
+        ],
+        "torch_shape": [
+          [
+            1,
+            250,
+            32
+          ]
+        ],
+        "ort_shape": [
+          [
+            1,
+            250,
+            32
+          ]
+        ]
+      },
+      "CUDAExecutionProvider": {
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 7.987022399902344e-06,
+            "max_rel": 0.0021187050733715296,
+            "comparison": "allclose"
+          }
+        ],
+        "torch_shape": [
+          [
+            1,
+            250,
+            32
+          ]
+        ],
+        "ort_shape": [
+          [
+            1,
+            250,
+            32
+          ]
+        ]
+      }
+    },
+    "480001": {
+      "CPUExecutionProvider": {
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 4.76837158203125e-06,
+            "max_rel": 0.00029427686240524054,
+            "comparison": "allclose"
+          }
+        ],
+        "torch_shape": [
+          [
+            1,
+            251,
+            32
+          ]
+        ],
+        "ort_shape": [
+          [
+            1,
+            251,
+            32
+          ]
+        ]
+      },
+      "CUDAExecutionProvider": {
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 7.987022399902344e-06,
+            "max_rel": 0.0021187050733715296,
+            "comparison": "allclose"
+          }
+        ],
+        "torch_shape": [
+          [
+            1,
+            251,
+            32
+          ]
+        ],
+        "ort_shape": [
+          [
+            1,
+            251,
+            32
+          ]
+        ]
+      }
+    }
+  },
+  "external_data_missing": {
+    "text_caption_encoder": {
+      "ok": true,
+      "status": "rejected",
+      "error": "UnicodeDecodeError('utf-8', b'[ONNXRuntimeError] : 6 : RUNTIME_EXCEPTION : Exception during initialization: file_size: \\x8ew\\x92\\xe8\\x82\\xb3\\x82\\xea\\x82\\xbd\\x83t\\x83@\\x83C\\x83\\x8b\\x82\\xaa\\x8c\\xa9\\x82\\xc2\\x82\\xa9\\x82\\xe8\\x82\\xdc\\x82\\xb9\\x82\\xf1\\x81B: \"C:\\\\Users\\\\rero2\\\\AppData\\\\Local\\\\Temp\\\\irodori-ort-missing-iwtwdzm8\\\\text_caption_encoder.onnx.data\"', 89, 90, 'invalid start byte')"
+    },
+    "speaker_encoder": {
+      "ok": true,
+      "status": "rejected",
+      "error": "UnicodeDecodeError('utf-8', b'[ONNXRuntimeError] : 6 : RUNTIME_EXCEPTION : Exception during initialization: file_size: \\x8ew\\x92\\xe8\\x82\\xb3\\x82\\xea\\x82\\xbd\\x83t\\x83@\\x83C\\x83\\x8b\\x82\\xaa\\x8c\\xa9\\x82\\xc2\\x82\\xa9\\x82\\xe8\\x82\\xdc\\x82\\xb9\\x82\\xf1\\x81B: \"C:\\\\Users\\\\rero2\\\\AppData\\\\Local\\\\Temp\\\\irodori-ort-missing-_bi7nkir\\\\speaker_encoder.onnx.data\"', 89, 90, 'invalid start byte')"
+    },
+    "duration_predictor": {
+      "ok": true,
+      "status": "rejected",
+      "error": "UnicodeDecodeError('utf-8', b'[ONNXRuntimeError] : 6 : RUNTIME_EXCEPTION : Exception during initialization: file_size: \\x8ew\\x92\\xe8\\x82\\xb3\\x82\\xea\\x82\\xbd\\x83t\\x83@\\x83C\\x83\\x8b\\x82\\xaa\\x8c\\xa9\\x82\\xc2\\x82\\xa9\\x82\\xe8\\x82\\xdc\\x82\\xb9\\x82\\xf1\\x81B: \"C:\\\\Users\\\\rero2\\\\AppData\\\\Local\\\\Temp\\\\irodori-ort-missing-norbeb9q\\\\duration_predictor.onnx.data\"', 89, 90, 'invalid start byte')"
+    },
+    "dit_step": {
+      "ok": true,
+      "status": "rejected",
+      "error": "UnicodeDecodeError('utf-8', b'[ONNXRuntimeError] : 6 : RUNTIME_EXCEPTION : Exception during initialization: file_size: \\x8ew\\x92\\xe8\\x82\\xb3\\x82\\xea\\x82\\xbd\\x83t\\x83@\\x83C\\x83\\x8b\\x82\\xaa\\x8c\\xa9\\x82\\xc2\\x82\\xa9\\x82\\xe8\\x82\\xdc\\x82\\xb9\\x82\\xf1\\x81B: \"C:\\\\Users\\\\rero2\\\\AppData\\\\Local\\\\Temp\\\\irodori-ort-missing-8dgzrjpn\\\\dit_step.onnx.data\"', 89, 90, 'invalid start byte')"
+    },
+    "codec_encoder": {
+      "ok": true,
+      "status": "rejected",
+      "error": "UnicodeDecodeError('utf-8', b'[ONNXRuntimeError] : 6 : RUNTIME_EXCEPTION : Exception during initialization: file_size: \\x8ew\\x92\\xe8\\x82\\xb3\\x82\\xea\\x82\\xbd\\x83t\\x83@\\x83C\\x83\\x8b\\x82\\xaa\\x8c\\xa9\\x82\\xc2\\x82\\xa9\\x82\\xe8\\x82\\xdc\\x82\\xb9\\x82\\xf1\\x81B: \"C:\\\\Users\\\\rero2\\\\AppData\\\\Local\\\\Temp\\\\irodori-ort-missing-qfg5z2rc\\\\codec_encoder.onnx.data\"', 89, 90, 'invalid start byte')"
+    },
+    "codec_decoder": {
+      "ok": true,
+      "status": "rejected",
+      "error": "UnicodeDecodeError('utf-8', b'[ONNXRuntimeError] : 6 : RUNTIME_EXCEPTION : Exception during initialization: file_size: \\x8ew\\x92\\xe8\\x82\\xb3\\x82\\xea\\x82\\xbd\\x83t\\x83@\\x83C\\x83\\x8b\\x82\\xaa\\x8c\\xa9\\x82\\xc2\\x82\\xa9\\x82\\xe8\\x82\\xdc\\x82\\xb9\\x82\\xf1\\x81B: \"C:\\\\Users\\\\rero2\\\\AppData\\\\Local\\\\Temp\\\\irodori-ort-missing-q9jm80u5\\\\codec_decoder.onnx.data\"', 89, 90, 'invalid start byte')"
+    }
+  },
+  "four_conditions": {
+    "null": {
+      "has_speaker": false,
+      "has_caption": false,
+      "providers": {
+        "CPUExecutionProvider": {
+          "ort_log_frames": 5.103736400604248,
+          "torch_log_frames": 5.103736400604248,
+          "frame_delta": 0.0,
+          "duration_pass": true,
+          "dit_pass": true,
+          "dit_errors": [
+            {
+              "index": 0,
+              "ok": true,
+              "max_abs": 3.5762786865234375e-06,
+              "max_rel": 0.0009525134228169918,
+              "comparison": "allclose"
+            }
+          ],
+          "pass": true
+        },
+        "CUDAExecutionProvider": {
+          "ort_log_frames": 5.103736400604248,
+          "torch_log_frames": 5.103736400604248,
+          "frame_delta": 0.0,
+          "duration_pass": true,
+          "dit_pass": true,
+          "dit_errors": [
+            {
+              "index": 0,
+              "ok": true,
+              "max_abs": 5.9604644775390625e-06,
+              "max_rel": 0.0002570896176621318,
+              "comparison": "allclose"
+            }
+          ],
+          "pass": true
+        }
+      },
+      "frame_delta": 0.0,
+      "pass": true
+    },
+    "speaker": {
+      "has_speaker": true,
+      "has_caption": false,
+      "providers": {
+        "CPUExecutionProvider": {
+          "ort_log_frames": 5.57573938369751,
+          "torch_log_frames": 5.57573938369751,
+          "frame_delta": 0.0,
+          "duration_pass": true,
+          "dit_pass": true,
+          "dit_errors": [
+            {
+              "index": 0,
+              "ok": true,
+              "max_abs": 4.5299530029296875e-06,
+              "max_rel": 0.0013994874898344278,
+              "comparison": "allclose"
+            }
+          ],
+          "pass": true
+        },
+        "CUDAExecutionProvider": {
+          "ort_log_frames": 5.575738906860352,
+          "torch_log_frames": 5.57573938369751,
+          "frame_delta": 0.0001258585820096414,
+          "duration_pass": true,
+          "dit_pass": true,
+          "dit_errors": [
+            {
+              "index": 0,
+              "ok": true,
+              "max_abs": 3.2186508178710938e-06,
+              "max_rel": 0.000202313662157394,
+              "comparison": "allclose"
+            }
+          ],
+          "pass": true
+        }
+      },
+      "frame_delta": 0.0001258585820096414,
+      "pass": true
+    },
+    "caption": {
+      "has_speaker": false,
+      "has_caption": true,
+      "providers": {
+        "CPUExecutionProvider": {
+          "ort_log_frames": 4.817713737487793,
+          "torch_log_frames": 4.817713737487793,
+          "frame_delta": 0.0,
+          "duration_pass": true,
+          "dit_pass": true,
+          "dit_errors": [
+            {
+              "index": 0,
+              "ok": true,
+              "max_abs": 5.304813385009766e-06,
+              "max_rel": 0.0007241477142088115,
+              "comparison": "allclose"
+            }
+          ],
+          "pass": true
+        },
+        "CUDAExecutionProvider": {
+          "ort_log_frames": 4.817713737487793,
+          "torch_log_frames": 4.817713737487793,
+          "frame_delta": 0.0,
+          "duration_pass": true,
+          "dit_pass": true,
+          "dit_errors": [
+            {
+              "index": 0,
+              "ok": true,
+              "max_abs": 4.291534423828125e-06,
+              "max_rel": 0.0002033723721979186,
+              "comparison": "allclose"
+            }
+          ],
+          "pass": true
+        }
+      },
+      "frame_delta": 0.0,
+      "pass": true
+    },
+    "speaker+caption": {
+      "has_speaker": true,
+      "has_caption": true,
+      "providers": {
+        "CPUExecutionProvider": {
+          "ort_log_frames": 5.2131757736206055,
+          "torch_log_frames": 5.2131757736206055,
+          "frame_delta": 0.0,
+          "duration_pass": true,
+          "dit_pass": true,
+          "dit_errors": [
+            {
+              "index": 0,
+              "ok": true,
+              "max_abs": 1.52587890625e-05,
+              "max_rel": 0.0001723103632684797,
+              "comparison": "allclose"
+            }
+          ],
+          "pass": true
+        },
+        "CUDAExecutionProvider": {
+          "ort_log_frames": 5.2131757736206055,
+          "torch_log_frames": 5.2131757736206055,
+          "frame_delta": 0.0,
+          "duration_pass": true,
+          "dit_pass": true,
+          "dit_errors": [
+            {
+              "index": 0,
+              "ok": true,
+              "max_abs": 4.0531158447265625e-06,
+              "max_rel": 0.0001925284886965528,
+              "comparison": "allclose"
+            }
+          ],
+          "pass": true
+        }
+      },
+      "frame_delta": 0.0,
+      "pass": true
+    }
+  },
+  "manifest_sha256": "c1d4bbb06c5296c104a5f5d7175489a38c726ca960f31f4e3b18a64986c74052",
+  "manifest_validation": {
+    "ok": true,
+    "errors": []
+  },
+  "codec_load": {
+    "status": "loaded",
+    "repository": "Aratako/Semantic-DACVAE-Japanese-32dim",
+    "weights_sha256": "022b6ad793fcb264e295f8773401f7a440e5b51299028a9ec5a55e8252298cb1",
+    "hash_match": true
+  },
+  "short_ort_wav": {
+    "status": "generated",
+    "path": "ort-text-dit-codec-smoke.wav",
+    "sample_rate": 48000,
+    "samples": 15360,
+    "peak": 0.9999553561210632,
+    "rms": 0.38378751277923584,
+    "method": "text_caption_encoder->dit_step(one_step)->codec_decoder"
+  },
+  "ort_smoke": {
+    "status": "generated",
+    "path": "ort-full-smoke.wav",
+    "method": "official tokenizer+duration features+Euler arithmetic; text_caption_encoder->codec_encoder->speaker_encoder->duration_predictor->40-step independent CFG dit_step->codec_decoder (all ORT)",
+    "all_neural_stages_onnx": true,
+    "reference_options": {
+      "max_ref_seconds": 120.0,
+      "normalize_db": null,
+      "ensure_max": false,
+      "tail_trim_samples": 0
+    },
+    "elapsed_seconds": 34.688,
+    "sample_rate": 48000,
+    "samples": 228480,
+    "seconds": 4.76,
+    "finite": true,
+    "peak": 0.8374168276786804,
+    "rms": 0.16027267277240753,
+    "used_seed": 0,
+    "predicted_frames": 119.31668090820312,
+    "latent_steps": 119,
+    "final_frame_delta": 0.0,
+    "reference_latent_steps": 250,
+    "dit_steps": 40,
+    "trajectory_sha256": "0449ce17dcd66f096a753b42fd672d9e566f8a9536c804042b28b4066117128e",
+    "ort_session_runs": {
+      "text_caption_encoder": 1,
+      "speaker_encoder": 1,
+      "duration_predictor": 1,
+      "dit_step": 40,
+      "codec_encoder": 1,
+      "codec_decoder": 1
+    },
+    "oracle_checks": {
+      "text_caption_encoder": {
+        "ok": true,
+        "details": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 1.5497207641601562e-06,
+            "max_rel": 0.0011413447791710496,
+            "comparison": "allclose"
+          },
+          {
+            "index": 1,
+            "ok": true,
+            "max_abs": 0.0,
+            "max_rel": 0.0,
+            "comparison": "allclose"
+          }
+        ],
+        "input_sha256": "0001aa9a6ace5d168385e4e3b8e9818bc745edea8087abe9c5e2fc3f23d0bb39"
+      },
+      "codec_encoder": {
+        "ok": true,
+        "details": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 2.1785497665405273e-05,
+            "max_rel": 0.012098435312509537,
+            "comparison": "allclose"
+          }
+        ],
+        "input_sha256": "5f909c8760d1f7a42f0575941a4d535a25a0a8a6d8c94fca9e68340c006e80f8"
+      },
+      "speaker_encoder": {
+        "ok": true,
+        "details": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 1.811981201171875e-05,
+            "max_rel": 0.032033417373895645,
+            "comparison": "allclose"
+          },
+          {
+            "index": 1,
+            "ok": true,
+            "comparison": "exact_bool"
+          }
+        ],
+        "input_sha256": "c776533ce70ad6caff82c746709453bc28cd3980fb8cd4467bf3fee0b66ed123"
+      },
+      "duration_predictor": {
+        "ok": true,
+        "details": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 0.0,
+            "max_rel": 0.0,
+            "comparison": "allclose"
+          }
+        ],
+        "input_sha256": "b904916ea92df3ecbfa51156daec9ec0b9a79a9b4b305e76a4ef32db788d9940"
+      },
+      "duration_final_frames": {
+        "ok": true,
+        "torch_final_frames": 119,
+        "ort_final_frames": 119,
+        "delta": 0
+      },
+      "dit_step_step_1": {
+        "ok": true,
+        "details": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 2.384185791015625e-06,
+            "max_rel": 0.0025092074647545815,
+            "comparison": "allclose"
+          }
+        ],
+        "input_sha256": "199ce2c8bd741fdc6abc7ebe27fc48912ecd0b1cf73fd8f166ed00278941c14a"
+      },
+      "dit_step_step_2": {
+        "ok": true,
+        "details": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 1.9073486328125e-06,
+            "max_rel": 0.005629837978631258,
+            "comparison": "allclose"
+          }
+        ],
+        "input_sha256": "ca8e35d4cfa8ca5aefd3c54ed115a64b9b564d122f46bb29d3980337a6104e02"
+      },
+      "dit_step_step_3": {
+        "ok": true,
+        "details": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 2.86102294921875e-06,
+            "max_rel": 0.005290530622005463,
+            "comparison": "allclose"
+          }
+        ],
+        "input_sha256": "d86a7b8639823fb03462d82a2f01635a84ea12ef7293ce71d09d9e43b2f7a66b"
+      },
+      "dit_step_step_4": {
+        "ok": true,
+        "details": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 2.771615982055664e-06,
+            "max_rel": 0.0024424283765256405,
+            "comparison": "allclose"
+          }
+        ],
+        "input_sha256": "585db52f684c871a02e6f7e070766a98b1bfe013c7b55386981cdffb5142fe55"
+      },
+      "dit_step_step_5": {
+        "ok": true,
+        "details": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 2.86102294921875e-06,
+            "max_rel": 0.009180846624076366,
+            "comparison": "allclose"
+          }
+        ],
+        "input_sha256": "e3011ca13b31f3778994666c449a5e17a60e3eeabeafebe03fdcf571c786e881"
+      },
+      "dit_step_step_6": {
+        "ok": true,
+        "details": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 3.5762786865234375e-06,
+            "max_rel": 0.010106761939823627,
+            "comparison": "allclose"
+          }
+        ],
+        "input_sha256": "8a87674530fd562fa7a5222b51b47221b7b2bc39b9dd99822d8519b4ae60b896"
+      },
+      "dit_step_step_7": {
+        "ok": true,
+        "details": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 3.6954879760742188e-06,
+            "max_rel": 0.004277912434190512,
+            "comparison": "allclose"
+          }
+        ],
+        "input_sha256": "d04c4c61a8835b28c36e930a4d1be0e4a9f11dc6191344046cbaacf01c79c725"
+      },
+      "dit_step_step_8": {
+        "ok": true,
+        "details": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 5.0067901611328125e-06,
+            "max_rel": 0.0039056753739714622,
+            "comparison": "allclose"
+          }
+        ],
+        "input_sha256": "c994d75c011e084008dc80aef5d95e65a6cadc158479e9619c5cf97855aa2436"
+      },
+      "dit_step_step_9": {
+        "ok": true,
+        "details": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 6.064772605895996e-06,
+            "max_rel": 0.005545752588659525,
+            "comparison": "allclose"
+          }
+        ],
+        "input_sha256": "c2026edff0e66f53f04f7bf11d14d7f2eca2a2334ff2524a2aaa114e94067c42"
+      },
+      "dit_step_step_10": {
+        "ok": true,
+        "details": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 6.765127182006836e-06,
+            "max_rel": 0.00109661475289613,
+            "comparison": "allclose"
+          }
+        ],
+        "input_sha256": "f605555c08838c27ba6a32a0557c437cf3a3aa4a58748b167494677629f72a80"
+      },
+      "dit_step_step_11": {
+        "ok": true,
+        "details": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 5.289912223815918e-06,
+            "max_rel": 0.0013647197047248483,
+            "comparison": "allclose"
+          }
+        ],
+        "input_sha256": "d5a9054796099399a71ed5f5e6ab4ba657019f1bbc5eda2ec926033060e2e2d2"
+      },
+      "dit_step_step_12": {
+        "ok": true,
+        "details": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 4.0531158447265625e-06,
+            "max_rel": 0.12403895705938339,
+            "comparison": "allclose"
+          }
+        ],
+        "input_sha256": "66dda6805d558b7c6ca8ad152fe8ea86afb4d66cd9710b2bcbf906b9bf0c2c1f"
+      },
+      "dit_step_step_13": {
+        "ok": true,
+        "details": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 4.5299530029296875e-06,
+            "max_rel": 0.012176577001810074,
+            "comparison": "allclose"
+          }
+        ],
+        "input_sha256": "863273e0c5920a72d1472bed4ba7954001f93464261c3e1f77de911ce1b44436"
+      },
+      "dit_step_step_14": {
+        "ok": true,
+        "details": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 4.231929779052734e-06,
+            "max_rel": 0.005788653623312712,
+            "comparison": "allclose"
+          }
+        ],
+        "input_sha256": "35c78736f88d131c6a72149bdafecbaed1028d01db5f1bc3f4005bf22b3fb980"
+      },
+      "dit_step_step_15": {
+        "ok": true,
+        "details": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 7.748603820800781e-06,
+            "max_rel": 0.003273467533290386,
+            "comparison": "allclose"
+          }
+        ],
+        "input_sha256": "b099ada008ea4816bfb09d453f6bd6464d260eb4e6c275cbb1c4ef6eb66cf04a"
+      },
+      "dit_step_step_16": {
+        "ok": true,
+        "details": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 5.900859832763672e-06,
+            "max_rel": 0.011564590036869049,
+            "comparison": "allclose"
+          }
+        ],
+        "input_sha256": "c867901882e671c21732b9db1b55d630c90bbd48f307ad786f787aa54b57d2f0"
+      },
+      "dit_step_step_17": {
+        "ok": true,
+        "details": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 8.910894393920898e-06,
+            "max_rel": 0.07592592388391495,
+            "comparison": "allclose"
+          }
+        ],
+        "input_sha256": "6f912342673bc741b1c3af3ea0cf271dad7c9b36bcb9b4775d2e5ab14333d9d4"
+      },
+      "dit_step_step_18": {
+        "ok": true,
+        "details": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 4.9229711294174194e-06,
+            "max_rel": 0.005900202319025993,
+            "comparison": "allclose"
+          }
+        ],
+        "input_sha256": "5f95ec39c63a01d02409c4ca9ca91f28c1cad5ea89d0982a1a359a59edc40d61"
+      },
+      "dit_step_step_19": {
+        "ok": true,
+        "details": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 4.827976226806641e-06,
+            "max_rel": 0.0018879472045227885,
+            "comparison": "allclose"
+          }
+        ],
+        "input_sha256": "4c0a525d69998d0fb9a92bdef6ee18481c3733fa914c6f72a3076c55f7985626"
+      },
+      "dit_step_step_20": {
+        "ok": true,
+        "details": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 7.152557373046875e-06,
+            "max_rel": 0.0016181888058781624,
+            "comparison": "allclose"
+          }
+        ],
+        "input_sha256": "472dd794d3bcd18e3f657af20fe496c3d7b8958ea49b77bb631939c5b48725d0"
+      },
+      "dit_step_step_21": {
+        "ok": true,
+        "details": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 8.821487426757812e-06,
+            "max_rel": 0.016744548454880714,
+            "comparison": "allclose"
+          }
+        ],
+        "input_sha256": "90be9fcecbc73258d4374bcd3368a78d1e897f0854b245050cca7d1ac86a5ec1"
+      },
+      "dit_step_step_22": {
+        "ok": true,
+        "details": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 3.933906555175781e-06,
+            "max_rel": 0.0008772708242759109,
+            "comparison": "allclose"
+          }
+        ],
+        "input_sha256": "908c1603692b0d830b670042cef08231b69496583b144be83f65eb6600ffc2c8"
+      },
+      "dit_step_step_23": {
+        "ok": true,
+        "details": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 4.649162292480469e-06,
+            "max_rel": 0.0029590942431241274,
+            "comparison": "allclose"
+          }
+        ],
+        "input_sha256": "78af80e0d7ccbfcb88055b5118a12e1f9053dd452ddb5800336bb2bb0437e843"
+      },
+      "dit_step_step_24": {
+        "ok": true,
+        "details": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 4.76837158203125e-06,
+            "max_rel": 0.005746703129261732,
+            "comparison": "allclose"
+          }
+        ],
+        "input_sha256": "51a177a37504ff2237010e6e3bd3f8a0f6950583ef31bcc655d5166f3eabad19"
+      },
+      "dit_step_step_25": {
+        "ok": true,
+        "details": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 4.3138861656188965e-06,
+            "max_rel": 0.005410891957581043,
+            "comparison": "allclose"
+          }
+        ],
+        "input_sha256": "2af28710a9fcf03170fd008a64ed85676452a63e8a375dafb9e48ddb662ecd62"
+      },
+      "dit_step_step_26": {
+        "ok": true,
+        "details": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 4.0531158447265625e-06,
+            "max_rel": 0.003167062532156706,
+            "comparison": "allclose"
+          }
+        ],
+        "input_sha256": "fc789fedba4e7c90f15e6c41ddde93a89b501d627ffe806e368d2b7d50a0fbf2"
+      },
+      "dit_step_step_27": {
+        "ok": true,
+        "details": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 5.0067901611328125e-06,
+            "max_rel": 0.02625649981200695,
+            "comparison": "allclose"
+          }
+        ],
+        "input_sha256": "1927b589ab3c69f3d196e00975471c951fd83fd60bb875631d0fdfe39a07db4b"
+      },
+      "dit_step_step_28": {
+        "ok": true,
+        "details": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 4.32133674621582e-06,
+            "max_rel": 0.0010667715687304735,
+            "comparison": "allclose"
+          }
+        ],
+        "input_sha256": "b14805f9ab63bf81cb794bc515fef9bf167b55475647e13c1c98a5f024722928"
+      },
+      "dit_step_step_29": {
+        "ok": true,
+        "details": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 4.291534423828125e-06,
+            "max_rel": 0.0033698463812470436,
+            "comparison": "allclose"
+          }
+        ],
+        "input_sha256": "30964bf4e767895e3c9c713db0ea56d5e227b1566cc59d925c05ce827c46982a"
+      },
+      "dit_step_step_30": {
+        "ok": true,
+        "details": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 6.556510925292969e-06,
+            "max_rel": 0.019743770360946655,
+            "comparison": "allclose"
+          }
+        ],
+        "input_sha256": "e01d6e8a49a564ea9ce972c341d90e68065283f9689db4980016a35e592bcea3"
+      },
+      "dit_step_step_31": {
+        "ok": true,
+        "details": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 4.76837158203125e-06,
+            "max_rel": 0.009630333632230759,
+            "comparison": "allclose"
+          }
+        ],
+        "input_sha256": "0065d2ede88df74e80c2ba655b3b83303525aae6ea08a47c57ca71c957808b65"
+      },
+      "dit_step_step_32": {
+        "ok": true,
+        "details": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 6.794929504394531e-06,
+            "max_rel": 0.008622388355433941,
+            "comparison": "allclose"
+          }
+        ],
+        "input_sha256": "c0eb41185a76be5bf9cf3962e232071f567e67a437e0964034bece7c0d875ad8"
+      },
+      "dit_step_step_33": {
+        "ok": true,
+        "details": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 6.198883056640625e-06,
+            "max_rel": 0.0011876021744683385,
+            "comparison": "allclose"
+          }
+        ],
+        "input_sha256": "77ac3bd9d069670ac853b78fd1129ff57e6f4aead589d3891ee8e3f39abdfebc"
+      },
+      "dit_step_step_34": {
+        "ok": true,
+        "details": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 4.410743713378906e-06,
+            "max_rel": 0.004230599384754896,
+            "comparison": "allclose"
+          }
+        ],
+        "input_sha256": "6b317d94bbf3c99416817160db150ed5c07b0044a64ee56a17905589024f09e3"
+      },
+      "dit_step_step_35": {
+        "ok": true,
+        "details": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 5.602836608886719e-06,
+            "max_rel": 0.008706776425242424,
+            "comparison": "allclose"
+          }
+        ],
+        "input_sha256": "1323d1abc2a8bd414bbc43aa4909d6394be27d6edf905388ecc2935a08aa8abd"
+      },
+      "dit_step_step_36": {
+        "ok": true,
+        "details": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 5.125999450683594e-06,
+            "max_rel": 0.0022299475967884064,
+            "comparison": "allclose"
+          }
+        ],
+        "input_sha256": "f439f206005fc71b91b3c4de3dd11968d155ae4daab3ea17d6f9d167ced0544e"
+      },
+      "dit_step_step_37": {
+        "ok": true,
+        "details": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 5.662441253662109e-06,
+            "max_rel": 0.0007259121048264205,
+            "comparison": "allclose"
+          }
+        ],
+        "input_sha256": "d4f4937dd063cc23eefcceeb08e883da3ebe7c245f6bf5d976411100dd247a1d"
+      },
+      "dit_step_step_38": {
+        "ok": true,
+        "details": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 5.602836608886719e-06,
+            "max_rel": 0.0012575682485476136,
+            "comparison": "allclose"
+          }
+        ],
+        "input_sha256": "2b45889d1ea68961abb3e911e53694a67ee4a648d31fe7615ee90d041b2bcf62"
+      },
+      "dit_step_step_39": {
+        "ok": true,
+        "details": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 3.814697265625e-06,
+            "max_rel": 0.013272128067910671,
+            "comparison": "allclose"
+          }
+        ],
+        "input_sha256": "35ab0b4038bd06340fe0080fe6e9dce60876344d88e84bebaf5c5a27ac74ea87"
+      },
+      "dit_step_step_40": {
+        "ok": true,
+        "details": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 3.0994415283203125e-06,
+            "max_rel": 0.0007409098325297236,
+            "comparison": "allclose"
+          }
+        ],
+        "input_sha256": "7917a57721165af4fd65315834f9f65d3c5f4aaeee3c4b85b4a0c24ffe5370a7"
+      },
+      "codec_decoder": {
+        "ok": true,
+        "details": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 5.245208740234375e-06,
+            "max_rel": 0.373731791973114,
+            "comparison": "allclose"
+          }
+        ],
+        "input_sha256": "815b033622bf8ef8c9cd9a997b3477e04d136434bbb0de5e56170bab746e99a1"
+      }
+    },
+    "cuda_profiles": {
+      "text_caption_encoder": {
+        "path": "irodori_text_caption_encoder_CUD_1788791874316747500_2026-09-07_23-37-54.json",
+        "providers": [
+          "CPUExecutionProvider",
+          "CUDAExecutionProvider"
+        ],
+        "events": 3414
+      },
+      "speaker_encoder": {
+        "path": "irodori_speaker_encoder_CUD_1788791876461590800_2026-09-07_23-37-56.json",
+        "providers": [
+          "CPUExecutionProvider",
+          "CUDAExecutionProvider"
+        ],
+        "events": 1990
+      },
+      "duration_predictor": {
+        "path": "irodori_duration_predictor_CUD_1788791877178354900_2026-09-07_23-37-57.json",
+        "providers": [
+          "CPUExecutionProvider",
+          "CUDAExecutionProvider"
+        ],
+        "events": 194
+      },
+      "dit_step": {
+        "path": "irodori_dit_step_CUD_1788791877252305900_2026-09-07_23-37-57.json",
+        "providers": [
+          "CPUExecutionProvider",
+          "CUDAExecutionProvider"
+        ],
+        "events": 155682
+      },
+      "codec_encoder": {
+        "path": "irodori_codec_encoder_CUD_1788791879865428300_2026-09-07_23-37-59.json",
+        "providers": [
+          "CPUExecutionProvider",
+          "CUDAExecutionProvider"
+        ],
+        "events": 302
+      },
+      "codec_decoder": {
+        "path": "irodori_codec_decoder_CUD_1788791880274461300_2026-09-07_23-38-00.json",
+        "providers": [
+          "CUDAExecutionProvider"
+        ],
+        "events": 281
+      }
+    },
+    "oracle_pass": true,
+    "sha256": "fe3f46551dba91f8d7c1289ff6ea4a0f3a8f381378cb61657b29d47e72ef2afe"
+  },
+  "finished_at": "2026-09-07T14:38:28Z",
+  "checks": {
+    "graphs": true,
+    "dynamic_length": true,
+    "speaker_ref_boundary": true,
+    "codec_waveform_boundary": true,
+    "four_conditions": true,
+    "external_data_missing": true,
+    "ort_smoke": true,
+    "cuda_required": true
+  },
+  "resources": {
+    "bundle_bytes": 4794293787,
+    "graph_bytes": 4777847,
+    "external_data_bytes": 4789515940,
+    "unique_small_file_bytes": 4777847,
+    "shared_weight_hashes": [],
+    "rss_mib": 10295.3984375,
+    "cuda_device": "NVIDIA GeForce RTX 5090",
+    "cuda_allocated_peak_mib": 0.0146484375,
+    "cuda_reserved_peak_mib": 2.0
+  }
+}

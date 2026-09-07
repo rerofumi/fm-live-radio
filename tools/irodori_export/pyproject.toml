@@ -1,0 +1,35 @@
+[project]
+name = "fm-live-radio-irodori-export"
+version = "0.1.0"
+description = "Reproducible isolated ONNX exporter for Irodori-TTS v4.1"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+  "torch==2.10.0",
+  "torchaudio==2.10.0",
+  "torchcodec==0.10.0",
+  "huggingface-hub==1.23.0",
+  "soundfile==0.13.1",
+  "sentencepiece==0.1.99",
+  "onnx==1.19.0",
+  "onnxruntime-gpu==1.22.0",
+  "safetensors==0.6.2",
+  "transformers==5.12.1",
+  "dacvae",
+]
+
+[tool.uv]
+package = false
+# dacvae's legacy audiotools metadata pins protobuf below 3.20, while ONNX
+# requires a current protobuf.  The exporter never imports audiotools; keep the
+# modern protobuf required by ONNX and override only that stale transitive pin.
+override-dependencies = ["protobuf>=4.25.1"]
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu128" }
+torchaudio = { index = "pytorch-cu128" }
+dacvae = { git = "https://github.com/facebookresearch/dacvae", rev = "414c20785fc3a28373073ea8ef7a1316eeeaca6e" }

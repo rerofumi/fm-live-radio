@@ -58,3 +58,16 @@ PowerShellでリポジトリルートから実行:
 
 最終検査でv4初版のローカルweightのhash不一致を確認した。`v4-corrupt-weight-run.*` は再取得前の異常実行（予測0.52秒）であり、成功/比較証拠に含めない。`model-integrity.json` に公式hashと観測値を保存した。runtime_probeは以後、推論前に固定weight hashを検査する。
 
+## WP-1 実装・独立受入の証拠
+
+WP-1は独立受入pass。正本は [wp1-acceptance.md](wp1-acceptance.md)、最終成果物契約は [wp1-manifest.json](wp1-manifest.json)。再作成は [exporter手順](../../../tools/irodori_export/README.md) に従う。
+
+- `parity-acceptance.json` / log: CPU/CUDA全graph・動的長・境界・4条件・欠損拒否・純ORT短文。
+- `acceptance_full_shadow.py` / `parity-acceptance-shadow.json`: 独立補完による40全stepと公式duration最終frame比較。
+- `acceptance_fixed_inputs.py` / `acceptance-fixed-inputs.json`: 固定資産の正例と5破損拒否。
+- `acceptance-isolated-sync.log`、`acceptance-reexport-parity.json`: 新規隔離環境と代表graph再export。
+- `acceptance-final-delta.json`: 最終manifestと実行済みgraph/重み/parityの不変確認。
+- `acceptance-external-storage.json`、`acceptance-gpu-memory.csv`: 保存容量と観測時メモリ。定常性能合格ではない。
+- `wp1-final-snapshot.json` はライセンス最終訂正前の履歴。現行manifestは `wp1-manifest.json`（SHA256 a5bec29d...）を参照。
+
+音声と数GBのgraphはignore対象。独立生成WAVは `model/irodori-v4.1-acceptance/ort-full-smoke.wav`。途中失敗ログの結果は最終合格へ混在させない。全アプリ回帰、Go v4組込、Wails E2E、品質/性能受入は今回の範囲外。

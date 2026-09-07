@@ -6,3 +6,5 @@ go = "latest"
 setup = { run = "go install github.com/wailsapp/wails/v2/cmd/wails@latest", description = "Install Wails CLI" }
 dev = { run = "wails dev", description = "Run Wails in development mode" }
 build = { run = "wails build", description = "Build the Wails application" }
+tts-export-v4 = { run = "uv run --directory tools/irodori_export --python 3.11 --no-sync python export.py", description = "Export isolated Irodori v4.1 ONNX graphs" }
+tts-parity-v4 = { run = "uv run --directory tools/irodori_export --python 3.11 --no-sync python parity.py", description = "Check Irodori v4.1 PyTorch/ORT parity" }

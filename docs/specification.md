@@ -475,3 +475,7 @@ Remove-Item Env:FM_RADIO_ORT_EP
 ```
 
 `cmd/local_smoketest` は Stable Audio 3 と IrodoriTTS を短い設定で実行し、生成 WAV の sample rate、channel、frames、peak、RMS を確認する。peak または RMS が 0 以下なら失敗とする。
+
+## Tokenizer互換性（2026-09-08）
+
+internal/localtts/irodori/tokenizerは固定Irodori v4.1 tokenizerの設定、特殊token、UTF-8 byte fallback、padding/truncationを解釈し、旧v3処理をlegacy分岐で保持する。EncodePaddedCheckedは非正長をエラーにする追加API。既存pipelineのtext256/caption64と呼出しAPIは維持する。固定公式との656条件一致、v3旧実装との656条件一致を[独立検証](plan_20260907_irodori_v4/evidence/wp2-acceptance.md)した。これはtokenizer対応のみで、製品のv4推論対応や既定モデル変更は含まない。

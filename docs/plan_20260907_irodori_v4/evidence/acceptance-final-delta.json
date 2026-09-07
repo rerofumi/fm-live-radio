@@ -1,0 +1,35 @@
+{
+  "manifest_sha256": "a5bec29d3787db2457d70d94693c2635c2ceefa091d0b1968af8665f8982060f",
+  "manifest_errors": [],
+  "codec_license": "Apache-2.0",
+  "parity_unchanged": true,
+  "graph_retained": {
+    "text_caption_encoder": true,
+    "speaker_encoder": true,
+    "duration_predictor": true,
+    "dit_step": true,
+    "codec_encoder": true,
+    "codec_decoder": true
+  },
+  "external_retained": {
+    "codec_decoder.onnx.data": true,
+    "codec_encoder.onnx.data": true,
+    "dit_step.onnx.data": true,
+    "duration_predictor.onnx.data": true,
+    "speaker_encoder.onnx.data": true,
+    "text_caption_encoder.onnx.data": true
+  },
+  "exporter_hashes": {
+    "export.py": true,
+    "parity.py": true,
+    "externalize.py": true,
+    "merge_manifest.py": true,
+    "pyproject.toml": true,
+    "uv.lock": true,
+    "mise.toml": true
+  },
+  "notice_hashes": {
+    "docs/plan_20260907_irodori_v4/evidence/licenses/modernbert-ja-LICENSE.txt": true,
+    "docs/plan_20260907_irodori_v4/evidence/licenses/dacvae-LICENSE.txt": true
+  }
+}

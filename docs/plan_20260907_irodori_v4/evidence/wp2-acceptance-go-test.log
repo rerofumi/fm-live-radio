@@ -1,0 +1,82 @@
+?   	fm-live-radio/internal/localtts	[no test files]
+?   	fm-live-radio/internal/localtts/irodori/metadata	[no test files]
+?   	fm-live-radio/internal/localtts/irodori/pipeline	[no test files]
+?   	fm-live-radio/internal/localtts/irodori/sampler	[no test files]
+?   	fm-live-radio/internal/localtts/irodori/tensor	[no test files]
+=== RUN   TestV4OfficialFixtures
+=== RUN   TestV4OfficialFixtures/japanese
+=== RUN   TestV4OfficialFixtures/news
+=== RUN   TestV4OfficialFixtures/digits_and_punctuation
+=== RUN   TestV4OfficialFixtures/emoji_byte_fallback
+=== RUN   TestV4OfficialFixtures/variant_kanji_byte_fallback
+=== RUN   TestV4OfficialFixtures/spaces_preserved
+=== RUN   TestV4OfficialFixtures/empty
+=== RUN   TestV4OfficialFixtures/single_space
+=== RUN   TestV4OfficialFixtures/repeated_spaces
+=== RUN   TestV4OfficialFixtures/newline
+=== RUN   TestV4OfficialFixtures/newline_then_text
+=== RUN   TestV4OfficialFixtures/special_tokens_adjacent
+=== RUN   TestV4OfficialFixtures/special_tokens
+=== RUN   TestV4OfficialFixtures/chat_marker
+=== RUN   TestV4OfficialFixtures/unicode_multi_byte
+--- PASS: TestV4OfficialFixtures (0.14s)
+    --- PASS: TestV4OfficialFixtures/japanese (0.00s)
+    --- PASS: TestV4OfficialFixtures/news (0.00s)
+    --- PASS: TestV4OfficialFixtures/digits_and_punctuation (0.00s)
+    --- PASS: TestV4OfficialFixtures/emoji_byte_fallback (0.00s)
+    --- PASS: TestV4OfficialFixtures/variant_kanji_byte_fallback (0.00s)
+    --- PASS: TestV4OfficialFixtures/spaces_preserved (0.00s)
+    --- PASS: TestV4OfficialFixtures/empty (0.00s)
+    --- PASS: TestV4OfficialFixtures/single_space (0.00s)
+    --- PASS: TestV4OfficialFixtures/repeated_spaces (0.00s)
+    --- PASS: TestV4OfficialFixtures/newline (0.00s)
+    --- PASS: TestV4OfficialFixtures/newline_then_text (0.00s)
+    --- PASS: TestV4OfficialFixtures/special_tokens_adjacent (0.00s)
+    --- PASS: TestV4OfficialFixtures/special_tokens (0.00s)
+    --- PASS: TestV4OfficialFixtures/chat_marker (0.00s)
+    --- PASS: TestV4OfficialFixtures/unicode_multi_byte (0.00s)
+=== RUN   TestV4BoundaryFixtures
+=== RUN   TestV4BoundaryFixtures/ascii_bytes_255
+=== RUN   TestV4BoundaryFixtures/ascii_bytes_256
+=== RUN   TestV4BoundaryFixtures/ascii_bytes_257
+--- PASS: TestV4BoundaryFixtures (0.13s)
+    --- PASS: TestV4BoundaryFixtures/ascii_bytes_255 (0.00s)
+    --- PASS: TestV4BoundaryFixtures/ascii_bytes_256 (0.00s)
+    --- PASS: TestV4BoundaryFixtures/ascii_bytes_257 (0.00s)
+=== RUN   TestV4TokenCountBoundaries
+=== RUN   TestV4TokenCountBoundaries/tokens_255
+=== RUN   TestV4TokenCountBoundaries/tokens_256
+=== RUN   TestV4TokenCountBoundaries/tokens_257
+--- PASS: TestV4TokenCountBoundaries (0.13s)
+    --- PASS: TestV4TokenCountBoundaries/tokens_255 (0.00s)
+    --- PASS: TestV4TokenCountBoundaries/tokens_256 (0.00s)
+    --- PASS: TestV4TokenCountBoundaries/tokens_257 (0.00s)
+=== RUN   TestV3GoldenPreserved
+--- PASS: TestV3GoldenPreserved (0.12s)
+=== RUN   TestEncodePaddedCheckedRejectsInvalidLength
+--- PASS: TestEncodePaddedCheckedRejectsInvalidLength (0.13s)
+PASS
+ok  	fm-live-radio/internal/localtts/irodori/tokenizer	0.862s
+?   	fm-live-radio/internal/localtts/irodori/wav	[no test files]
+=== RUN   TestComputeWavLoudnessEnvelope_Silence
+--- PASS: TestComputeWavLoudnessEnvelope_Silence (0.00s)
+=== RUN   TestComputeWavLoudnessEnvelope_FullScalePeakAndRMS
+--- PASS: TestComputeWavLoudnessEnvelope_FullScalePeakAndRMS (0.00s)
+=== RUN   TestComputeWavLoudnessEnvelope_WindowingHalfFull
+--- PASS: TestComputeWavLoudnessEnvelope_WindowingHalfFull (0.00s)
+=== RUN   TestComputeWavLoudnessEnvelope_TrailingPartialWindow
+--- PASS: TestComputeWavLoudnessEnvelope_TrailingPartialWindow (0.00s)
+=== RUN   TestComputeWavLoudnessEnvelope_StereoAveraging
+--- PASS: TestComputeWavLoudnessEnvelope_StereoAveraging (0.00s)
+=== RUN   TestComputeWavLoudnessEnvelope_RejectsNonWav
+--- PASS: TestComputeWavLoudnessEnvelope_RejectsNonWav (0.00s)
+=== RUN   TestComputeWavLoudnessEnvelope_DefaultWindow
+--- PASS: TestComputeWavLoudnessEnvelope_DefaultWindow (0.00s)
+PASS
+ok  	fm-live-radio/internal/audiofmt	0.200s
+=== RUN   TestNormalizeStableAudio3Genre
+--- PASS: TestNormalizeStableAudio3Genre (0.00s)
+=== RUN   TestNormalizeStableAudio3GenreHasFourEntries
+--- PASS: TestNormalizeStableAudio3GenreHasFourEntries (0.00s)
+PASS
+ok  	fm-live-radio/internal/store	0.200s

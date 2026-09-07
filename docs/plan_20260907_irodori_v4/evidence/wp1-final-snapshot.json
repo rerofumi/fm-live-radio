@@ -1,0 +1,140 @@
+{
+  "generated_at": "2026-09-07T14:47:13.1730706Z",
+  "manifest_sha256": "cf0b50037f893624fbd9dfb3b915443833b06dd1519fe7a73204e500580e13ab",
+  "official_source": {
+    "repository": "Aratako/Irodori-TTS",
+    "revision": "8224dafb46d0aba89209a8f905f1cb7e3299d9c1",
+    "content_sha256": "f159d56bdbde0e6ada8d8fec875a4c66c540baff23425fe661ae000f6a7b437f",
+    "archive": "third_party/irodori-v4-research/upstream.zip",
+    "archive_sha256": "e80f64d4a4b1a4db186003bc8f3416f5ecfc2e32b1b73b8b967465fba5c27c9c"
+  },
+  "checkpoint": {
+    "path": "E:\\programming\\AI_generative\\fm-live-radio\\third_party\\irodori-v4-research\\Irodori-TTS-v4.1-Small\\model.safetensors",
+    "sha256": "c85de88c01700cb53538e706f128ebcb1b8513ad21d7d0e75f58bc82cdbf89f6",
+    "bytes": 3064295596
+  },
+  "tokenizer": {
+    "repository": "sbintuitions/modernbert-ja-310m",
+    "revision": "77675fc96a7e445e982e2ba90246b816efc74ec6",
+    "path": "tokenizer/tokenizer.json",
+    "sha256": "6a0734cf21c802169defaffe719bc2ef12bb9d0be37e54b61ed27aa89394723d",
+    "special_ids": {
+      "bos": 1,
+      "eos": 2,
+      "pad": 3
+    },
+    "text_max_length": 256,
+    "caption_max_length": 512,
+    "max_ref_seconds": 120.0,
+    "license": {
+      "spdx": "MIT",
+      "source": "https://huggingface.co/sbintuitions/modernbert-ja-310m/blob/77675fc96a7e445e982e2ba90246b816efc74ec6/LICENSE",
+      "copyright": "Copyright (c) 2025 SB Intuitions",
+      "note": "配布するtokenizer.jsonはこのModernBERT-ja checkpoint由来。原文license/NOTICEを上記revisionで参照。"
+    }
+  },
+  "codec": {
+    "repository": "Aratako/Semantic-DACVAE-Japanese-32dim",
+    "weights_revision": "47376ee24834d7a05a48ebabfe3cde29b3c5e214",
+    "weights_sha256": "022b6ad793fcb264e295f8773401f7a440e5b51299028a9ec5a55e8252298cb1",
+    "weights_file_sha256": "db120339c5ee7eca1912cdf29bc612b947a0808e69c3cebfb4936b45a762c1d5",
+    "code_revision": "414c20785fc3a28373073ea8ef7a1316eeeaca6e",
+    "sample_rate": 48000,
+    "hop_length": 1920,
+    "latent_dim": 32,
+    "deterministic_encode": true,
+    "deterministic_decode": true
+  },
+  "exporter": {
+    "repository": "fm-live-radio/tools/irodori_export",
+    "python": "3.11.15",
+    "opset": 18,
+    "precision": "float32",
+    "device": "cpu",
+    "files_sha256": {
+      "export.py": "af585dd11d96bd750e036f002f1a0f02815ea9640285b7fbcc9463303d4532f1",
+      "parity.py": "fd9fb75305869511c9c38c11b188bd8bf17e281d038657c8794ab61ba149c153",
+      "externalize.py": "b45dca0f44f4b5d4cdf232ce22653da3189a7b893fb4b7f1b2d3fb7fc60b3f26",
+      "merge_manifest.py": "cde4781c570cebda21dc263b0e988810405e4e30478956fa98751a226bffda90",
+      "pyproject.toml": "0b86ddbf456a13973563bcb79d645ea593adea1ac164052418196fec3c313f63",
+      "uv.lock": "1f47f490fbf1e45ce70d1b1a503822398010e87579d8fb2bb88c0a1fa8670748",
+      "mise.toml": "0fd4f139926e4eee399d654a877780dfb494134ac547f7f28167152239b27f48"
+    }
+  },
+  "graphs": {
+    "text_caption_encoder": {
+      "path": "text_caption_encoder.onnx",
+      "sha256": "5c761facccaf89481fb657f61d65b1b42257e03416ed24034d356c1002951488",
+      "bytes": 2364766
+    },
+    "speaker_encoder": {
+      "path": "speaker_encoder.onnx",
+      "sha256": "ade7c2ebd546ae2fe816c5a2a9219764eee4e0f27acf6237f6c14d0c672a72e6",
+      "bytes": 855794
+    },
+    "duration_predictor": {
+      "path": "duration_predictor.onnx",
+      "sha256": "3dc9c10699f15bed2b3f070e2b707ad1ba9eed20e838ece437df45b0cb258ed1",
+      "bytes": 61552
+    },
+    "dit_step": {
+      "path": "dit_step.onnx",
+      "sha256": "331cd5bebc2a464cf66587a529382aa5460d8e5d4bbc998e2bf879376b6349ad",
+      "bytes": 1297335
+    },
+    "codec_encoder": {
+      "path": "codec_encoder.onnx",
+      "sha256": "f1b8dde58f7f9349a92bc04736f8321793b9d402098b39f6c2aa75393b024f5d",
+      "bytes": 103441
+    },
+    "codec_decoder": {
+      "path": "codec_decoder.onnx",
+      "sha256": "e867ac6193f0b90197ba41d57ae8e6516ae8fa148fd159d3451fa6c5c0056699",
+      "bytes": 94959
+    }
+  },
+  "external_data": [
+    {
+      "path": "codec_decoder.onnx.data",
+      "bytes": 1045610016,
+      "sha256": "e11e57c286d06612c04a1cf3775f603f2366dd0f84fcd97a2322213f0bc248bb"
+    },
+    {
+      "path": "codec_encoder.onnx.data",
+      "bytes": 437694464,
+      "sha256": "efed215cee42e9bf30c51b70abf5d07796520b04a32313d7b9560d1aed2ef773"
+    },
+    {
+      "path": "dit_step.onnx.data",
+      "bytes": 1462937728,
+      "sha256": "80360b9f1ec360d460ee6111138a6a7183249a4f6159005b954cd302c3a5c7b0"
+    },
+    {
+      "path": "duration_predictor.onnx.data",
+      "bytes": 87110660,
+      "sha256": "a47e3d164c97a4a8a502323903fa7f2e2ccd33e34018514f3bda292ee7e1af17"
+    },
+    {
+      "path": "speaker_encoder.onnx.data",
+      "bytes": 484061184,
+      "sha256": "2607d7d6e289f4884c7ab122f0befa36076209ef08c804390d2ab4a07988924d"
+    },
+    {
+      "path": "text_caption_encoder.onnx.data",
+      "bytes": 1272101888,
+      "sha256": "1b1f641465ae6c6fa34ac4a927e074ea1b2e52965cf0f052a390172b5214bca4"
+    }
+  ],
+  "parity_report": "docs/plan_20260907_irodori_v4/evidence/parity-worker-ort-final.json",
+  "parity_checks": {
+    "graphs": true,
+    "dynamic_length": true,
+    "speaker_ref_boundary": true,
+    "codec_waveform_boundary": true,
+    "four_conditions": true,
+    "external_data_missing": true,
+    "ort_smoke": true,
+    "cuda_required": true
+  },
+  "parity_report_manifest_sha256_before_metadata_merge": "47dcc95d84df7e179404b134f63684c7854924ecc8019f1b6bd749d029cbe78b"
+}

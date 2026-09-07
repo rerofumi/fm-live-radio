@@ -91,3 +91,21 @@ v4.1全5ケースでPyTorch allocated最大4423.92 MiB、reserved最大5048 MiB�
 ## 試聴確認（2026-09-07追記）
 
 ユーザーがv3、v4、v4.1、v4.1参照+captionの4サンプルを試聴し、すべて期待通りの音声品質と報告した。[対象とhash・評価範囲](../plan_20260907_irodori_v4/evidence/user-audition.md)。v4.1の短文品質に関する事前確認として利用できるが、モデル間の優劣や改修後Go/ONNXの品質保証には拡張しない。
+## WP-1 ONNX実測（2026-09-07）
+
+開発用exporterは `tools/irodori_export/`、成果物は `model/irodori-v4.1/`。製品Go推論はまだv3。独立受入でtext/caption共有encoder、speaker、dual duration、DiT step、codec encoder/decoderの6 graphがCPU/CUDAで基準内（atol=1e-4、rtol=1e-3）と確認された。[独立受入](../plan_20260907_irodori_v4/evidence/wp1-acceptance.md)。
+
+- CUDAはPyTorch/ORT双方でTF32を無効にする。初回text graphの誤差5.47e-4は設定後1.19e-6へ改善。provider名だけでなくprofilingでCUDAノード実行を確認し、shape用CPUノードは区別する。
+- speaker patch=4はfloor/truncate。最小正常長4、1/3は公式も拒否する。ceil paddingへ変えると端数時の条件長が変わるため不可。4/5/7/8/9/17をCPU/CUDAで検証。
+- DACVAE hopは1920 samples（48kHz）。公式の長さ依存padding分岐をtraceしただけではhop倍数にも余分なpaddingが付く。動的reflect paddingを表現し、1919/1920/1921、479999/480000/480001をCPU/CUDA比較する。480000 samplesは250 latent。参照を1 sample削って不一致を隠さない。
+- 純ORT生成は10秒narrator、40step、全NNをORT実行し4.76秒/119frameのWAVを生成。独立補完probeで40全stepを同じ入力の公式出力と比較し基準内、公式durationとの差0。透かし前の数値比較であり、聴取品質・Go組込・実時間性能の合格ではない。
+- 計測時の参照条件はmax_ref_seconds=120、normalize=None、ensure_max=False。今後のGo側前後処理はこの条件と公式既定の差を明示して扱う。
+- 外部dataは全graphで欠損を拒否。再exportでsidecarに未参照旧dataが残ることがあるため、再作成は空ディレクトリへ行う。受入時の保存サイズ約4.79GBと参照weight約3.44GBを混同しない。
+
+証拠: [全graph](../plan_20260907_irodori_v4/evidence/parity-acceptance.json)、[40step/公式duration](../plan_20260907_irodori_v4/evidence/parity-acceptance-shadow.json)、[隔離再export比較](../plan_20260907_irodori_v4/evidence/acceptance-reexport-parity.json)。固定環境・配布対象の最終状態は計画90_statusとexporter READMEを参照する。
+
+## WP-2 tokenizer実測（2026-09-08）
+
+固定v4.1 tokenizer（SHA256 6a0734cf…）と公式PretrainedTextTokenizerに対してGoを修正。v4はnormalizerなし、Metaspace prepend_scheme=never/split=false、PAD=3。入力内PAD特殊tokenはactive mask=true。BOSは長さ上限に含める。Unicodeを無条件に正規化しない。UTF-8 fallbackはbyte単位で経路を扱い、v4はfloat64スコア、v3は旧float32/旧fallbackのlegacy処理を維持する。
+
+独立比較: v4全ids/mask/raw ids 656条件一致、無効長4条件一致、変更前v3との656条件一致。Go限定回帰はskipなしで成功。通常go testにはローカルmodel/irodori-v3・irodori-v4.1のtokenizer資産が必要で、欠損は失敗する。[環境・hash・再生成手順・全配列](../plan_20260907_irodori_v4/evidence/wp2-acceptance.md)。固定資産の保証であり汎用HF tokenizer対応ではない。資産/source/依存またはtokenizerコード変更時は同じ比較を再実行する。製品v4推論は後続WP-3。

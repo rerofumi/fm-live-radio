@@ -1,0 +1,738 @@
+{
+  "schema_version": 2,
+  "model_family": "irodori-v4",
+  "model_release": "v4.1-small",
+  "model_revision": "2b28324dc263ed5e6638b3cf3dd94c82ead07b4b",
+  "official_source": {
+    "repository": "Aratako/Irodori-TTS",
+    "revision": "8224dafb46d0aba89209a8f905f1cb7e3299d9c1",
+    "content_sha256": "f159d56bdbde0e6ada8d8fec875a4c66c540baff23425fe661ae000f6a7b437f",
+    "archive": "third_party/irodori-v4-research/upstream.zip",
+    "archive_sha256": "e80f64d4a4b1a4db186003bc8f3416f5ecfc2e32b1b73b8b967465fba5c27c9c"
+  },
+  "exporter": {
+    "repository": "fm-live-radio/tools/irodori_export",
+    "python": "3.11.15",
+    "opset": 18,
+    "precision": "float32",
+    "device": "cpu",
+    "files_sha256": {
+      "export.py": "af585dd11d96bd750e036f002f1a0f02815ea9640285b7fbcc9463303d4532f1",
+      "parity.py": "fd9fb75305869511c9c38c11b188bd8bf17e281d038657c8794ab61ba149c153",
+      "externalize.py": "b45dca0f44f4b5d4cdf232ce22653da3189a7b893fb4b7f1b2d3fb7fc60b3f26",
+      "merge_manifest.py": "cde4781c570cebda21dc263b0e988810405e4e30478956fa98751a226bffda90",
+      "pyproject.toml": "0b86ddbf456a13973563bcb79d645ea593adea1ac164052418196fec3c313f63",
+      "uv.lock": "1f47f490fbf1e45ce70d1b1a503822398010e87579d8fb2bb88c0a1fa8670748",
+      "mise.toml": "0fd4f139926e4eee399d654a877780dfb494134ac547f7f28167152239b27f48"
+    }
+  },
+  "tokenizer": {
+    "repository": "sbintuitions/modernbert-ja-310m",
+    "revision": "77675fc96a7e445e982e2ba90246b816efc74ec6",
+    "path": "tokenizer/tokenizer.json",
+    "sha256": "6a0734cf21c802169defaffe719bc2ef12bb9d0be37e54b61ed27aa89394723d",
+    "special_ids": {
+      "bos": 1,
+      "eos": 2,
+      "pad": 3
+    },
+    "text_max_length": 256,
+    "caption_max_length": 512,
+    "max_ref_seconds": 120.0,
+    "license": {
+      "spdx": "MIT",
+      "source": "https://huggingface.co/sbintuitions/modernbert-ja-310m/blob/77675fc96a7e445e982e2ba90246b816efc74ec6/LICENSE",
+      "copyright": "Copyright (c) 2025 SB Intuitions",
+      "note": "�z�z����tokenizer.json�͂���ModernBERT-ja checkpoint�R���B����license/NOTICE����Lrevision�ŎQ�ƁB"
+    }
+  },
+  "codec": {
+    "repository": "Aratako/Semantic-DACVAE-Japanese-32dim",
+    "weights_revision": "47376ee24834d7a05a48ebabfe3cde29b3c5e214",
+    "weights_sha256": "022b6ad793fcb264e295f8773401f7a440e5b51299028a9ec5a55e8252298cb1",
+    "weights_file_sha256": "db120339c5ee7eca1912cdf29bc612b947a0808e69c3cebfb4936b45a762c1d5",
+    "code_revision": "414c20785fc3a28373073ea8ef7a1316eeeaca6e",
+    "sample_rate": 48000,
+    "hop_length": 1920,
+    "latent_dim": 32,
+    "deterministic_encode": true,
+    "deterministic_decode": true
+  },
+  "licenses": {
+    "official_code": {
+      "spdx": "MIT",
+      "source": "https://github.com/Aratako/Irodori-TTS/blob/8224dafb46d0aba89209a8f905f1cb7e3299d9c1/LICENSE"
+    },
+    "model": {
+      "spdx": "MIT",
+      "source": "https://huggingface.co/Aratako/Irodori-TTS-v4.1-Small"
+    },
+    "codec_code": {
+      "spdx": "MIT",
+      "source": "https://github.com/facebookresearch/dacvae/blob/414c20785fc3a28373073ea8ef7a1316eeeaca6e/LICENSE"
+    },
+    "codec_model": {
+      "spdx": "MIT",
+      "source": "https://huggingface.co/Aratako/Semantic-DACVAE-Japanese-32dim"
+    },
+    "tokenizer_modernbert": {
+      "spdx": "MIT",
+      "source": "https://huggingface.co/sbintuitions/modernbert-ja-310m/blob/77675fc96a7e445e982e2ba90246b816efc74ec6/LICENSE",
+      "copyright": "Copyright (c) 2025 SB Intuitions",
+      "distribution_target": "model/irodori-v4.1/tokenizer/tokenizer.json"
+    },
+    "distribution_targets": [
+      "model/irodori-v4.1/*.onnx",
+      "model/irodori-v4.1/*.onnx.data",
+      "model/irodori-v4.1/tokenizer/tokenizer.json"
+    ],
+    "development_only": [
+      "tools/irodori_export/.venv",
+      "tools/irodori_export/uv.lock"
+    ],
+    "notice_sources": [
+      "https://github.com/Aratako/Irodori-TTS/blob/8224dafb46d0aba89209a8f905f1cb7e3299d9c1/LICENSE",
+      "https://github.com/facebookresearch/dacvae/blob/414c20785fc3a28373073ea8ef7a1316eeeaca6e/LICENSE",
+      "https://huggingface.co/sbintuitions/modernbert-ja-310m/blob/77675fc96a7e445e982e2ba90246b816efc74ec6/LICENSE"
+    ],
+    "notice_files": [
+      {
+        "component": "ModernBERT-ja tokenizer",
+        "path": "docs/plan_20260907_irodori_v4/evidence/licenses/modernbert-ja-LICENSE.txt",
+        "sha256": "284353c80e0d52c06e97af62fd40e4dd1d253fa28f5d1e756121ea1d5d441509"
+      },
+      {
+        "component": "DACVAE code",
+        "path": "docs/plan_20260907_irodori_v4/evidence/licenses/dacvae-LICENSE.txt",
+        "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+      }
+    ]
+  },
+  "conditions": {
+    "text_dim": 512,
+    "caption_dim": 512,
+    "speaker_dim": 768,
+    "speaker_patch_size": 4,
+    "duration_aux_dim": 14,
+    "duration_architecture": "token_sum_dual_adarn_zero_no_aux",
+    "latent_dim": 32,
+    "latent_patch_size": 1
+  },
+  "checkpoint": {
+    "path": "E:\\programming\\AI_generative\\fm-live-radio\\third_party\\irodori-v4-research\\Irodori-TTS-v4.1-Small\\model.safetensors",
+    "sha256": "c85de88c01700cb53538e706f128ebcb1b8513ad21d7d0e75f58bc82cdbf89f6",
+    "bytes": 3064295596
+  },
+  "graphs": {
+    "text_caption_encoder": {
+      "path": "text_caption_encoder.onnx",
+      "inputs": [
+        "text_input_ids",
+        "text_mask",
+        "caption_input_ids",
+        "caption_mask"
+      ],
+      "outputs": [
+        "text_state",
+        "caption_state"
+      ],
+      "io": {
+        "inputs": [
+          {
+            "name": "text_input_ids",
+            "dtype": "INT64",
+            "shape": [
+              "batch",
+              "text_seq"
+            ]
+          },
+          {
+            "name": "text_mask",
+            "dtype": "BOOL",
+            "shape": [
+              "batch",
+              "text_seq"
+            ]
+          },
+          {
+            "name": "caption_input_ids",
+            "dtype": "INT64",
+            "shape": [
+              "batch",
+              "caption_seq"
+            ]
+          },
+          {
+            "name": "caption_mask",
+            "dtype": "BOOL",
+            "shape": [
+              "batch",
+              "caption_seq"
+            ]
+          }
+        ],
+        "outputs": [
+          {
+            "name": "text_state",
+            "dtype": "FLOAT",
+            "shape": [
+              "batch",
+              "text_seq",
+              512
+            ]
+          },
+          {
+            "name": "caption_state",
+            "dtype": "FLOAT",
+            "shape": [
+              "batch",
+              "caption_seq",
+              512
+            ]
+          }
+        ]
+      },
+      "dynamic_axes": {
+        "text_input_ids": {
+          "0": "batch",
+          "1": "text_seq"
+        },
+        "text_mask": {
+          "0": "batch",
+          "1": "text_seq"
+        },
+        "caption_input_ids": {
+          "0": "batch",
+          "1": "caption_seq"
+        },
+        "caption_mask": {
+          "0": "batch",
+          "1": "caption_seq"
+        },
+        "text_state": {
+          "0": "batch",
+          "1": "text_seq"
+        },
+        "caption_state": {
+          "0": "batch",
+          "1": "caption_seq"
+        }
+      },
+      "opset": 18,
+      "bytes": 2364766,
+      "sha256": "5c761facccaf89481fb657f61d65b1b42257e03416ed24034d356c1002951488"
+    },
+    "speaker_encoder": {
+      "path": "speaker_encoder.onnx",
+      "inputs": [
+        "ref_latent",
+        "ref_mask"
+      ],
+      "outputs": [
+        "speaker_state",
+        "speaker_mask"
+      ],
+      "io": {
+        "inputs": [
+          {
+            "name": "ref_latent",
+            "dtype": "FLOAT",
+            "shape": [
+              "batch",
+              "ref_seq",
+              32
+            ]
+          },
+          {
+            "name": "ref_mask",
+            "dtype": "BOOL",
+            "shape": [
+              "batch",
+              "ref_seq"
+            ]
+          }
+        ],
+        "outputs": [
+          {
+            "name": "speaker_state",
+            "dtype": "FLOAT",
+            "shape": [
+              "batch",
+              "speaker_seq",
+              768
+            ]
+          },
+          {
+            "name": "speaker_mask",
+            "dtype": "BOOL",
+            "shape": [
+              "batch",
+              "speaker_seq"
+            ]
+          }
+        ]
+      },
+      "dynamic_axes": {
+        "ref_latent": {
+          "0": "batch",
+          "1": "ref_seq"
+        },
+        "ref_mask": {
+          "0": "batch",
+          "1": "ref_seq"
+        },
+        "speaker_state": {
+          "0": "batch",
+          "1": "speaker_seq"
+        },
+        "speaker_mask": {
+          "0": "batch",
+          "1": "speaker_seq"
+        }
+      },
+      "opset": 18,
+      "bytes": 855794,
+      "sha256": "ade7c2ebd546ae2fe816c5a2a9219764eee4e0f27acf6237f6c14d0c672a72e6"
+    },
+    "duration_predictor": {
+      "path": "duration_predictor.onnx",
+      "inputs": [
+        "text_state",
+        "text_mask",
+        "speaker_state",
+        "speaker_mask",
+        "caption_state",
+        "caption_mask",
+        "duration_features",
+        "has_speaker",
+        "has_caption"
+      ],
+      "outputs": [
+        "log_frames"
+      ],
+      "io": {
+        "inputs": [
+          {
+            "name": "text_state",
+            "dtype": "FLOAT",
+            "shape": [
+              "batch",
+              "text_seq",
+              512
+            ]
+          },
+          {
+            "name": "text_mask",
+            "dtype": "BOOL",
+            "shape": [
+              "batch",
+              "text_seq"
+            ]
+          },
+          {
+            "name": "speaker_state",
+            "dtype": "FLOAT",
+            "shape": [
+              "batch",
+              "speaker_seq",
+              768
+            ]
+          },
+          {
+            "name": "speaker_mask",
+            "dtype": "BOOL",
+            "shape": [
+              "batch",
+              "speaker_seq"
+            ]
+          },
+          {
+            "name": "caption_state",
+            "dtype": "FLOAT",
+            "shape": [
+              "batch",
+              "caption_seq",
+              512
+            ]
+          },
+          {
+            "name": "caption_mask",
+            "dtype": "BOOL",
+            "shape": [
+              "batch",
+              "caption_seq"
+            ]
+          },
+          {
+            "name": "duration_features",
+            "dtype": "FLOAT",
+            "shape": [
+              "batch",
+              14
+            ]
+          },
+          {
+            "name": "has_speaker",
+            "dtype": "BOOL",
+            "shape": [
+              "batch"
+            ]
+          },
+          {
+            "name": "has_caption",
+            "dtype": "BOOL",
+            "shape": [
+              "batch"
+            ]
+          }
+        ],
+        "outputs": [
+          {
+            "name": "log_frames",
+            "dtype": "FLOAT",
+            "shape": [
+              "batch"
+            ]
+          }
+        ]
+      },
+      "dynamic_axes": {
+        "text_state": {
+          "0": "batch",
+          "1": "text_seq"
+        },
+        "text_mask": {
+          "0": "batch",
+          "1": "text_seq"
+        },
+        "speaker_state": {
+          "0": "batch",
+          "1": "speaker_seq"
+        },
+        "speaker_mask": {
+          "0": "batch",
+          "1": "speaker_seq"
+        },
+        "caption_state": {
+          "0": "batch",
+          "1": "caption_seq"
+        },
+        "caption_mask": {
+          "0": "batch",
+          "1": "caption_seq"
+        },
+        "duration_features": {
+          "0": "batch"
+        },
+        "has_speaker": {
+          "0": "batch"
+        },
+        "has_caption": {
+          "0": "batch"
+        },
+        "log_frames": {
+          "0": "batch"
+        }
+      },
+      "opset": 18,
+      "bytes": 61552,
+      "sha256": "3dc9c10699f15bed2b3f070e2b707ad1ba9eed20e838ece437df45b0cb258ed1"
+    },
+    "dit_step": {
+      "path": "dit_step.onnx",
+      "inputs": [
+        "x_t",
+        "t",
+        "text_state",
+        "text_mask",
+        "speaker_state",
+        "speaker_mask",
+        "caption_state",
+        "caption_mask",
+        "latent_mask"
+      ],
+      "outputs": [
+        "v_pred"
+      ],
+      "io": {
+        "inputs": [
+          {
+            "name": "x_t",
+            "dtype": "FLOAT",
+            "shape": [
+              "batch",
+              "latent_seq",
+              32
+            ]
+          },
+          {
+            "name": "t",
+            "dtype": "FLOAT",
+            "shape": [
+              "batch"
+            ]
+          },
+          {
+            "name": "text_state",
+            "dtype": "FLOAT",
+            "shape": [
+              "batch",
+              "text_seq",
+              512
+            ]
+          },
+          {
+            "name": "text_mask",
+            "dtype": "BOOL",
+            "shape": [
+              "batch",
+              "text_seq"
+            ]
+          },
+          {
+            "name": "speaker_state",
+            "dtype": "FLOAT",
+            "shape": [
+              "batch",
+              "speaker_seq",
+              768
+            ]
+          },
+          {
+            "name": "speaker_mask",
+            "dtype": "BOOL",
+            "shape": [
+              "batch",
+              "speaker_seq"
+            ]
+          },
+          {
+            "name": "caption_state",
+            "dtype": "FLOAT",
+            "shape": [
+              "batch",
+              "caption_seq",
+              512
+            ]
+          },
+          {
+            "name": "caption_mask",
+            "dtype": "BOOL",
+            "shape": [
+              "batch",
+              "caption_seq"
+            ]
+          },
+          {
+            "name": "latent_mask",
+            "dtype": "BOOL",
+            "shape": [
+              "batch",
+              "latent_seq"
+            ]
+          }
+        ],
+        "outputs": [
+          {
+            "name": "v_pred",
+            "dtype": "FLOAT",
+            "shape": [
+              "batch",
+              "latent_seq",
+              32
+            ]
+          }
+        ]
+      },
+      "dynamic_axes": {
+        "x_t": {
+          "0": "batch",
+          "1": "latent_seq"
+        },
+        "t": {
+          "0": "batch"
+        },
+        "text_state": {
+          "0": "batch",
+          "1": "text_seq"
+        },
+        "text_mask": {
+          "0": "batch",
+          "1": "text_seq"
+        },
+        "speaker_state": {
+          "0": "batch",
+          "1": "speaker_seq"
+        },
+        "speaker_mask": {
+          "0": "batch",
+          "1": "speaker_seq"
+        },
+        "caption_state": {
+          "0": "batch",
+          "1": "caption_seq"
+        },
+        "caption_mask": {
+          "0": "batch",
+          "1": "caption_seq"
+        },
+        "latent_mask": {
+          "0": "batch",
+          "1": "latent_seq"
+        },
+        "v_pred": {
+          "0": "batch",
+          "1": "latent_seq"
+        }
+      },
+      "opset": 18,
+      "bytes": 1297335,
+      "sha256": "331cd5bebc2a464cf66587a529382aa5460d8e5d4bbc998e2bf879376b6349ad"
+    },
+    "codec_encoder": {
+      "path": "codec_encoder.onnx",
+      "inputs": [
+        "waveform"
+      ],
+      "outputs": [
+        "latent"
+      ],
+      "io": {
+        "inputs": [
+          {
+            "name": "waveform",
+            "dtype": "FLOAT",
+            "shape": [
+              "batch",
+              1,
+              "samples"
+            ]
+          }
+        ],
+        "outputs": [
+          {
+            "name": "latent",
+            "dtype": "FLOAT",
+            "shape": [
+              "batch",
+              "latent_seq",
+              "Transposelatent_dim_2"
+            ]
+          }
+        ]
+      },
+      "dynamic_axes": {
+        "waveform": {
+          "0": "batch",
+          "2": "samples"
+        },
+        "latent": {
+          "0": "batch",
+          "1": "latent_seq",
+          "2": "Transposelatent_dim_2"
+        }
+      },
+      "opset": 18,
+      "bytes": 103441,
+      "sha256": "f1b8dde58f7f9349a92bc04736f8321793b9d402098b39f6c2aa75393b024f5d"
+    },
+    "codec_decoder": {
+      "path": "codec_decoder.onnx",
+      "inputs": [
+        "latent"
+      ],
+      "outputs": [
+        "waveform"
+      ],
+      "io": {
+        "inputs": [
+          {
+            "name": "latent",
+            "dtype": "FLOAT",
+            "shape": [
+              "batch",
+              "latent_seq",
+              32
+            ]
+          }
+        ],
+        "outputs": [
+          {
+            "name": "waveform",
+            "dtype": "FLOAT",
+            "shape": [
+              "batch",
+              1,
+              "samples"
+            ]
+          }
+        ]
+      },
+      "dynamic_axes": {
+        "latent": {
+          "0": "batch",
+          "1": "latent_seq"
+        },
+        "waveform": {
+          "0": "batch",
+          "2": "samples"
+        }
+      },
+      "opset": 18,
+      "bytes": 94959,
+      "sha256": "e867ac6193f0b90197ba41d57ae8e6516ae8fa148fd159d3451fa6c5c0056699"
+    }
+  },
+  "external_data": [
+    {
+      "path": "codec_decoder.onnx.data",
+      "bytes": 1045610016,
+      "sha256": "e11e57c286d06612c04a1cf3775f603f2366dd0f84fcd97a2322213f0bc248bb"
+    },
+    {
+      "path": "codec_encoder.onnx.data",
+      "bytes": 437694464,
+      "sha256": "efed215cee42e9bf30c51b70abf5d07796520b04a32313d7b9560d1aed2ef773"
+    },
+    {
+      "path": "dit_step.onnx.data",
+      "bytes": 1462937728,
+      "sha256": "80360b9f1ec360d460ee6111138a6a7183249a4f6159005b954cd302c3a5c7b0"
+    },
+    {
+      "path": "duration_predictor.onnx.data",
+      "bytes": 87110660,
+      "sha256": "a47e3d164c97a4a8a502323903fa7f2e2ccd33e34018514f3bda292ee7e1af17"
+    },
+    {
+      "path": "speaker_encoder.onnx.data",
+      "bytes": 484061184,
+      "sha256": "2607d7d6e289f4884c7ab122f0befa36076209ef08c804390d2ab4a07988924d"
+    },
+    {
+      "path": "text_caption_encoder.onnx.data",
+      "bytes": 1272101888,
+      "sha256": "1b1f641465ae6c6fa34ac4a927e074ea1b2e52965cf0f052a390172b5214bca4"
+    }
+  ],
+  "resource_observations": {
+    "gpu_peak_mib": null,
+    "gpu_measurement": "not captured by exporter; CUDA acceptance required",
+    "cpu_working_set": null
+  },
+  "export": {
+    "status": "merged_from_individual_exports",
+    "errors": []
+  },
+  "fixtures": {
+    "path": "fixtures.json",
+    "sha256": "abb232f19e1cabd37bbc3df1d004aaac3b602d47f54a496dc5f8826808da219c",
+    "seed": 0,
+    "conditions": [
+      "reference",
+      "caption",
+      "reference+caption",
+      "null"
+    ]
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "valid": "C:\\Users\\rero2\\.cache\\huggingface\\hub\\models--Aratako--Semantic-DACVAE-Japanese-32dim\\snapshots\\47376ee24834d7a05a48ebabfe3cde29b3c5e214\\weights.pth",
+  "codec_file_sha256": "db120339c5ee7eca1912cdf29bc612b947a0808e69c3cebfb4936b45a762c1d5",
+  "negative": {
+    "source": {
+      "ok": true,
+      "error": "official source content SHA256 mismatch: expected=f159d56bdbde0e6ada8d8fec875a4c66c540baff23425fe661ae000f6a7b437f actual=1df273d80bc4fafe9deda96e6699a84b5c139cbc73f5159f77f344d8c97aaf9c"
+    },
+    "archive": {
+      "ok": true,
+      "error": "official source archive SHA256 mismatch: expected=e80f64d4a4b1a4db186003bc8f3416f5ecfc2e32b1b73b8b967465fba5c27c9c actual=11d510e067d2cdcd7559bd86d27a2f4c20babd43670346b97af99b522c1f0075"
+    },
+    "checkpoint": {
+      "ok": true,
+      "error": "checkpoint SHA256 mismatch for fixed v4.1-small input: expected=c85de88c01700cb53538e706f128ebcb1b8513ad21d7d0e75f58bc82cdbf89f6 actual=11d510e067d2cdcd7559bd86d27a2f4c20babd43670346b97af99b522c1f0075"
+    },
+    "tokenizer": {
+      "ok": true,
+      "error": "tokenizer SHA256 mismatch for fixed ModernBERT-ja input: expected=6a0734cf21c802169defaffe719bc2ef12bb9d0be37e54b61ed27aa89394723d actual=11d510e067d2cdcd7559bd86d27a2f4c20babd43670346b97af99b522c1f0075"
+    },
+    "codec": {
+      "ok": true,
+      "error": "codec weights SHA256 mismatch for fixed DACVAE snapshot: expected=db120339c5ee7eca1912cdf29bc612b947a0808e69c3cebfb4936b45a762c1d5 actual=11d510e067d2cdcd7559bd86d27a2f4c20babd43670346b97af99b522c1f0075"
+    }
+  }
+}

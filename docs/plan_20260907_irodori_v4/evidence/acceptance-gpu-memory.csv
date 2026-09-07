@@ -1,0 +1,4 @@
+timestamp, memory.used [MiB], memory.total [MiB], utilization.gpu [%]
+2026/09/07 23:36:20.288, 2463 MiB, 32607 MiB, 3 %
+timestamp, memory.used [MiB], memory.total [MiB], utilization.gpu [%]
+2026/09/07 23:37:58.240, 11127 MiB, 32607 MiB, 3 %

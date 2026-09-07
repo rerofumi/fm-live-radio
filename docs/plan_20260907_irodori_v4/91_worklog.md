@@ -76,3 +76,57 @@ worklog: enabled
 - 証拠: evidence/user-audition.md。4 WAVのSHA256を既存検証記録と照合し一致。
 - 更新: 要件補足、レビュー資料/記録、status、調査cheatsheet、証拠READMEを更新。
 - 判定: 4件の事前品質確認は完了。10原稿×3seedと移行後Go/ONNX評価は未実施のためREQ-09全体は未完了。実装には着手していない。
+## WL-011 — Step 9: WP-1 実施開始（2026-09-07）
+
+- 入力: ユーザーのWP-1実施依頼、30/40/90、調査cheatsheet、既存再現手順。開始時jj clean、parent d8358ef5、working snapshot efe0480b。
+- 範囲: 固定exporter環境と全ONNX graph、CPU/CUDA parity、短文ORT生成による技術Go判定。WP-2以降の製品実装と既定切替は対象外。
+- 体制: fm-dev-implementに従い、新規workerと独立acceptanceを分離。検証範囲はexporterと生成成果物に限定し、アプリの未変更領域の全回帰は今回要求しない。
+- 環境: 通常sandboxでは指定Eドライブへのアクセス拒否を確認。権限昇格したPowerShellによる指定リポジトリの読み取りは成功。
+- 次: 全graphの実測証拠を収集し、独立受入で固定成果物と移行可能性を判定する。
+## WL-012 — Steps 9–10: WP-1 初回実装・中間レビュー（2026-09-07）
+
+- 成果: tools/irodori_export と隔離model/irodori-v4.1に6 graph、外部data、manifestを作成。
+- 独立調査: 数値比較/終了判定、依存固定、動的/条件比較、短文生成の不足を検出。CUDA精度差は未解消。
+- 判断: 初回workerの成功報告を受入へ転記せず、50_review_notesに未達を記録。新規fix workerへ厳密な検証・CUDA切分け・公式生成ループを委譲。
+- 次: 修正後の成果物hashに対応する独立E1を実施。全計画はWP-2以降が残るためimplementingを維持。
+## WL-013 — Step 10: WP-1 graph独立受入（2026-09-07）
+
+- 独立担当が別bundle/別出力でCPU/CUDA全6 graph、動的長、speaker/codec境界、4条件、外部data欠損、実ORT短文を再実行し成功。
+- 補完probeで40全stepの同一入力PyTorch/ORT比較を実行し全一致基準内。公式durationとORTは119 frame、差0。
+- 証拠: evidence/parity-acceptance.json、parity-acceptance-shadow.json、acceptance-io-check.json。
+- 判定: REQ-03のWP-1 graph契約部分pass。Go組込WP-3は未実施。REQ-01は隔離venv構築成功、固定資産/再現/ライセンスの受入を継続。
+## WL-014 — Steps 10–11: WP-1受入完了と文書反映
+
+- 独立担当の正式受入: REQ-01 pass、REQ-03 WP-1部分pass。固定入力5破損拒否、新規隔離環境/代表再export、全CPU/CUDAと40step比較を確認。
+- 最終metadata: DACVAEコードApache-2.0を原文と一致させ、取得時cwd/固定archive手順を訂正。graph/重み/parity不変により成功証拠を保持。
+- 文書: 90_status、plan_index、40仕様、50/60、cheatsheetと証拠READMEへ反映。製品仕様はv3のまま、WP-1を製品移行済みとは書かない。
+- 結果: WP-1完了・技術Go。WP-2以降が未実施のため計画stateはimplementing。次の担当はGo tokenizer/推論組込へ進む。
+
+## WL-015 — Step 9: WP-2限定実施開始（2026-09-08）
+
+- 入力: ユーザーのWP-2のみの実施依頼、REQ-02、WP-2仕様、既存tokenizer比較とWP-1結果。
+- 範囲: 公式PretrainedTextTokenizerとのids/mask一致、境界fixtures、v3 token列の保持。WP-3以降は今回実施しない。
+- 体制: 新規workerと独立受入を分離。tokenizerと直接利用箇所のtargeted検証を行う。
+- 環境: sandboxでEドライブへのアクセス拒否を再確認し、対象限定の権限昇格読み取りは成功。
+- 判断: 汎用bindingの新規採用など既存仕様で決まらない事項は、調査根拠を揃えて利用者へ返す。
+
+## WL-016 — Step 9: WP-2 tokenizer実装（2026-09-08）
+
+- 実装: `internal/localtts/irodori/tokenizer` を v3/v4 設定別に拡張。v4 の Metaspace `prepend_scheme=never`、`<pad>`=3、literal added token、UTF-8 byte fallback、float64 Unigram DPを反映。v3は旧DP/正規化を `legacyV3` として保持。
+- fixtures: 公式固定 tokenizer SHA256 `6a0734cf21c802169defaffe719bc2ef12bb9d0be37e54b61ed27aa89394723d` 由来の既存6文、空/空白/改行、特殊token、複数byte、ASCII byte長255/256/257、token数255/256/257、およびv3 goldenを追加。
+- 検証: `mise x -- go test ./internal/localtts/irodori/tokenizer -count=1` 成功。直接consumerを含む `mise x -- go test ./internal/localtts/... ./internal/audiofmt/... ./internal/store/...` 成功。[worker証拠](evidence/tokenizer-parity-worker.json)
+- 範囲: REQ-02 implementer evidenceのみ更新。独立受入、受入欄、計画state、WP-3以降、v4既定切替は未実施。
+
+## WL-016 — Step 9–10: WP-2実装報告と独立受入開始（2026-09-08）
+
+- worker報告: tokenizerのv4設定解釈・特殊token・UTF-8 byte fallback・精度を修正し、v3をlegacy分岐で保持。境界テストとworker証拠を追加。
+- 中間レビュー: v3共通処理への影響、byte数とtoken数の境界混同、fixture参照パス、正解系の出所確認を指摘しworkerへ共有。
+- 検証報告: tokenizerとlocaltts/audiofmt/storeのGoテスト成功。証拠はevidence/tokenizer-parity-worker.json。
+- 次: 同じ独立受入担当が完成差分と正解系を確認しE1を再実行。worker報告だけでREQ-02をpassにしない。後続WPが残るため計画stateはimplementingを維持。
+
+## WL-017 — Steps 10–11: WP-2独立受入完了（2026-09-08）
+
+- 独立受入: REQ-02 pass。公式656正常条件＋4無効長、旧v3の656条件を直接比較。Go回帰はskipなし成功。全配列・固定source/asset/hashと手順はevidence/wp2-acceptance.mdに集約。
+- 訂正: WL-016のfixture参照パス指摘は受入担当の階層数の数え違いで撤回。v3分離・token境界・公式provenanceは完成版で確認済み。
+- 反映: 90_status、plan_index、40仕様、60レビュー、cheatsheet、現行specificationを更新。計画全体はimplementing維持。
+- 判断: WP-2に新binding採用等の追加方式選択は不要。ユーザー指定のWP-2だけで終了し、WP-3以降は未着手として引き渡す。

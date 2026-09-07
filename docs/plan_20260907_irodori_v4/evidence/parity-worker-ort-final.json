@@ -1,0 +1,1790 @@
+{
+  "schema_version": 2,
+  "started_at": "2026-09-07T14:27:24Z",
+  "threshold": {
+    "atol": 0.0001,
+    "rtol": 0.001
+  },
+  "providers": {
+    "available": [
+      "TensorrtExecutionProvider",
+      "CUDAExecutionProvider",
+      "CPUExecutionProvider"
+    ],
+    "cpu": true,
+    "cuda": true
+  },
+  "math": {
+    "pytorch_tf32": false,
+    "ort_cuda_use_tf32": 0
+  },
+  "graphs": {
+    "text_caption_encoder": [
+      {
+        "provider": "CPUExecutionProvider",
+        "graph": "text_caption_encoder",
+        "path": "text_caption_encoder.onnx",
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 9.5367431640625e-07,
+            "max_rel": 0.00020405789837241173,
+            "comparison": "allclose"
+          },
+          {
+            "index": 1,
+            "ok": true,
+            "max_abs": 9.5367431640625e-07,
+            "max_rel": 9.422836592420936e-05,
+            "comparison": "allclose"
+          }
+        ],
+        "output_shapes": [
+          [
+            1,
+            8,
+            512
+          ],
+          [
+            1,
+            12,
+            512
+          ]
+        ]
+      },
+      {
+        "provider": "CUDAExecutionProvider",
+        "graph": "text_caption_encoder",
+        "path": "text_caption_encoder.onnx",
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 1.0728836059570312e-06,
+            "max_rel": 0.00012179222539998591,
+            "comparison": "allclose"
+          },
+          {
+            "index": 1,
+            "ok": true,
+            "max_abs": 1.1920928955078125e-06,
+            "max_rel": 0.00013741792645305395,
+            "comparison": "allclose"
+          }
+        ],
+        "output_shapes": [
+          [
+            1,
+            8,
+            512
+          ],
+          [
+            1,
+            12,
+            512
+          ]
+        ]
+      }
+    ],
+    "speaker_encoder": [
+      {
+        "provider": "CPUExecutionProvider",
+        "graph": "speaker_encoder",
+        "path": "speaker_encoder.onnx",
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 3.4570693969726562e-06,
+            "max_rel": 0.006689981557428837,
+            "comparison": "allclose"
+          },
+          {
+            "index": 1,
+            "ok": true,
+            "comparison": "exact_bool"
+          }
+        ],
+        "output_shapes": [
+          [
+            1,
+            5,
+            768
+          ],
+          [
+            1,
+            5
+          ]
+        ]
+      },
+      {
+        "provider": "CUDAExecutionProvider",
+        "graph": "speaker_encoder",
+        "path": "speaker_encoder.onnx",
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 3.107823431491852e-06,
+            "max_rel": 0.021604295819997787,
+            "comparison": "allclose"
+          },
+          {
+            "index": 1,
+            "ok": true,
+            "comparison": "exact_bool"
+          }
+        ],
+        "output_shapes": [
+          [
+            1,
+            5,
+            768
+          ],
+          [
+            1,
+            5
+          ]
+        ]
+      }
+    ],
+    "duration_predictor": [
+      {
+        "provider": "CPUExecutionProvider",
+        "graph": "duration_predictor",
+        "path": "duration_predictor.onnx",
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 0.0,
+            "max_rel": 0.0,
+            "comparison": "allclose"
+          }
+        ],
+        "output_shapes": [
+          [
+            1
+          ]
+        ]
+      },
+      {
+        "provider": "CUDAExecutionProvider",
+        "graph": "duration_predictor",
+        "path": "duration_predictor.onnx",
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 4.76837158203125e-07,
+            "max_rel": 1.1490551088400025e-07,
+            "comparison": "allclose"
+          }
+        ],
+        "output_shapes": [
+          [
+            1
+          ]
+        ]
+      }
+    ],
+    "dit_step": [
+      {
+        "provider": "CPUExecutionProvider",
+        "graph": "dit_step",
+        "path": "dit_step.onnx",
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 4.541128873825073e-06,
+            "max_rel": 0.00017144849698524922,
+            "comparison": "allclose"
+          }
+        ],
+        "output_shapes": [
+          [
+            1,
+            21,
+            32
+          ]
+        ]
+      },
+      {
+        "provider": "CUDAExecutionProvider",
+        "graph": "dit_step",
+        "path": "dit_step.onnx",
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 5.159527063369751e-06,
+            "max_rel": 0.00020955766376573592,
+            "comparison": "allclose"
+          }
+        ],
+        "output_shapes": [
+          [
+            1,
+            21,
+            32
+          ]
+        ]
+      }
+    ],
+    "codec_encoder": [
+      {
+        "provider": "CPUExecutionProvider",
+        "graph": "codec_encoder",
+        "path": "codec_encoder.onnx",
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 4.76837158203125e-06,
+            "max_rel": 0.0003739346284419298,
+            "comparison": "allclose"
+          }
+        ],
+        "output_shapes": [
+          [
+            1,
+            2,
+            32
+          ]
+        ]
+      },
+      {
+        "provider": "CUDAExecutionProvider",
+        "graph": "codec_encoder",
+        "path": "codec_encoder.onnx",
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 1.0609626770019531e-05,
+            "max_rel": 0.0009885025210678577,
+            "comparison": "allclose"
+          }
+        ],
+        "output_shapes": [
+          [
+            1,
+            2,
+            32
+          ]
+        ]
+      }
+    ],
+    "codec_decoder": [
+      {
+        "provider": "CPUExecutionProvider",
+        "graph": "codec_decoder",
+        "path": "codec_decoder.onnx",
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 5.438923835754395e-07,
+            "max_rel": 0.07183271646499634,
+            "comparison": "allclose"
+          }
+        ],
+        "output_shapes": [
+          [
+            1,
+            1,
+            15360
+          ]
+        ]
+      },
+      {
+        "provider": "CUDAExecutionProvider",
+        "graph": "codec_decoder",
+        "path": "codec_decoder.onnx",
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 1.087784767150879e-06,
+            "max_rel": 0.4061085879802704,
+            "comparison": "allclose"
+          }
+        ],
+        "output_shapes": [
+          [
+            1,
+            1,
+            15360
+          ]
+        ]
+      }
+    ]
+  },
+  "dynamic_length": {
+    "text_caption_encoder": [
+      {
+        "provider": "CPUExecutionProvider",
+        "status": "executed",
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 1.1920928955078125e-06,
+            "max_rel": 0.0002612141543067992,
+            "comparison": "allclose"
+          },
+          {
+            "index": 1,
+            "ok": true,
+            "max_abs": 1.1920928955078125e-06,
+            "max_rel": 0.00010296951222699136,
+            "comparison": "allclose"
+          }
+        ],
+        "shapes": [
+          [
+            1,
+            5,
+            512
+          ],
+          [
+            1,
+            9,
+            512
+          ]
+        ]
+      },
+      {
+        "provider": "CUDAExecutionProvider",
+        "status": "executed",
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 1.1920928955078125e-06,
+            "max_rel": 0.00013247183233033866,
+            "comparison": "allclose"
+          },
+          {
+            "index": 1,
+            "ok": true,
+            "max_abs": 9.5367431640625e-07,
+            "max_rel": 0.00012880758731625974,
+            "comparison": "allclose"
+          }
+        ],
+        "shapes": [
+          [
+            1,
+            5,
+            512
+          ],
+          [
+            1,
+            9,
+            512
+          ]
+        ]
+      }
+    ],
+    "speaker_encoder": [
+      {
+        "provider": "CPUExecutionProvider",
+        "status": "executed",
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 4.06801700592041e-06,
+            "max_rel": 0.019090425223112106,
+            "comparison": "allclose"
+          },
+          {
+            "index": 1,
+            "ok": true,
+            "comparison": "exact_bool"
+          }
+        ],
+        "shapes": [
+          [
+            1,
+            3,
+            768
+          ],
+          [
+            1,
+            3
+          ]
+        ]
+      },
+      {
+        "provider": "CUDAExecutionProvider",
+        "status": "executed",
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 2.7418136596679688e-06,
+            "max_rel": 0.009109167382121086,
+            "comparison": "allclose"
+          },
+          {
+            "index": 1,
+            "ok": true,
+            "comparison": "exact_bool"
+          }
+        ],
+        "shapes": [
+          [
+            1,
+            3,
+            768
+          ],
+          [
+            1,
+            3
+          ]
+        ]
+      }
+    ],
+    "dit_step": [
+      {
+        "provider": "CPUExecutionProvider",
+        "status": "executed",
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 4.172325134277344e-06,
+            "max_rel": 0.002455765614286065,
+            "comparison": "allclose"
+          }
+        ],
+        "shapes": [
+          [
+            1,
+            13,
+            32
+          ]
+        ]
+      },
+      {
+        "provider": "CUDAExecutionProvider",
+        "status": "executed",
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 3.9637088775634766e-06,
+            "max_rel": 0.0020799553021788597,
+            "comparison": "allclose"
+          }
+        ],
+        "shapes": [
+          [
+            1,
+            13,
+            32
+          ]
+        ]
+      }
+    ],
+    "duration_predictor": [
+      {
+        "provider": "CPUExecutionProvider",
+        "status": "executed",
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 0.0,
+            "max_rel": 0.0,
+            "comparison": "allclose"
+          }
+        ],
+        "shapes": [
+          [
+            1
+          ]
+        ]
+      },
+      {
+        "provider": "CUDAExecutionProvider",
+        "status": "executed",
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 4.76837158203125e-07,
+            "max_rel": 1.4041769702544116e-07,
+            "comparison": "allclose"
+          }
+        ],
+        "shapes": [
+          [
+            1
+          ]
+        ]
+      }
+    ],
+    "codec_encoder": [
+      {
+        "provider": "CPUExecutionProvider",
+        "status": "executed",
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 4.76837158203125e-06,
+            "max_rel": 0.0003739346284419298,
+            "comparison": "allclose"
+          }
+        ],
+        "shapes": [
+          [
+            1,
+            2,
+            32
+          ]
+        ]
+      },
+      {
+        "provider": "CUDAExecutionProvider",
+        "status": "executed",
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 1.0609626770019531e-05,
+            "max_rel": 0.0009885025210678577,
+            "comparison": "allclose"
+          }
+        ],
+        "shapes": [
+          [
+            1,
+            2,
+            32
+          ]
+        ]
+      }
+    ],
+    "codec_decoder": [
+      {
+        "provider": "CPUExecutionProvider",
+        "status": "executed",
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 4.926696419715881e-07,
+            "max_rel": 0.009275296702980995,
+            "comparison": "allclose"
+          }
+        ],
+        "shapes": [
+          [
+            1,
+            1,
+            9600
+          ]
+        ]
+      },
+      {
+        "provider": "CUDAExecutionProvider",
+        "status": "executed",
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 8.977949619293213e-07,
+            "max_rel": 0.010646948590874672,
+            "comparison": "allclose"
+          }
+        ],
+        "shapes": [
+          [
+            1,
+            1,
+            9600
+          ]
+        ]
+      }
+    ]
+  },
+  "speaker_ref_boundary": {
+    "1": {
+      "CPUExecutionProvider": {
+        "ok": true,
+        "status": "expected_rejection",
+        "ort_error": "RuntimeException(\"[ONNXRuntimeError] : 6 : RUNTIME_EXCEPTION : Non-zero status code returned while running Mul node. Name:'/speaker_encoder/Mul' Status Message: D:\\\\a\\\\_work\\\\1\\\\s\\\\onnxruntime\\\\core/providers/cpu/math/element_wise_ops.h:666 onnxruntime::Broadcaster::Broadcaster largest <= 1 was false. Can broadcast 0 by 0 or 1. 4 is invalid.\\n\")",
+        "torch_error": "ValueError('Reference sequence too short for speaker_patch_size=4: seq_len=1')"
+      },
+      "CUDAExecutionProvider": {
+        "ok": true,
+        "status": "expected_rejection",
+        "ort_error": "RuntimeException(\"[ONNXRuntimeError] : 6 : RUNTIME_EXCEPTION : Non-zero status code returned while running ReduceSum node. Name:'/ReduceSum_3' Status Message: D:\\\\a\\\\_work\\\\1\\\\s\\\\onnxruntime\\\\core\\\\providers\\\\cuda\\\\reduction\\\\reduction_ops.cc:294 onnxruntime::cuda::PrepareForReduce input_dims[axis] != 0 was false. Can't reduce on dim with value of 0 if 'keepdims' is false. Invalid output shape would be produced. input_shape:{1,0}\\n\")",
+        "torch_error": "ValueError('Reference sequence too short for speaker_patch_size=4: seq_len=1')"
+      }
+    },
+    "3": {
+      "CPUExecutionProvider": {
+        "ok": true,
+        "status": "expected_rejection",
+        "ort_error": "RuntimeException(\"[ONNXRuntimeError] : 6 : RUNTIME_EXCEPTION : Non-zero status code returned while running Mul node. Name:'/speaker_encoder/Mul' Status Message: D:\\\\a\\\\_work\\\\1\\\\s\\\\onnxruntime\\\\core/providers/cpu/math/element_wise_ops.h:666 onnxruntime::Broadcaster::Broadcaster largest <= 1 was false. Can broadcast 0 by 0 or 1. 4 is invalid.\\n\")",
+        "torch_error": "ValueError('Reference sequence too short for speaker_patch_size=4: seq_len=3')"
+      },
+      "CUDAExecutionProvider": {
+        "ok": true,
+        "status": "expected_rejection",
+        "ort_error": "RuntimeException(\"[ONNXRuntimeError] : 6 : RUNTIME_EXCEPTION : Non-zero status code returned while running ReduceSum node. Name:'/ReduceSum_3' Status Message: D:\\\\a\\\\_work\\\\1\\\\s\\\\onnxruntime\\\\core\\\\providers\\\\cuda\\\\reduction\\\\reduction_ops.cc:294 onnxruntime::cuda::PrepareForReduce input_dims[axis] != 0 was false. Can't reduce on dim with value of 0 if 'keepdims' is false. Invalid output shape would be produced. input_shape:{1,0}\\n\")",
+        "torch_error": "ValueError('Reference sequence too short for speaker_patch_size=4: seq_len=3')"
+      }
+    },
+    "4": {
+      "CPUExecutionProvider": {
+        "ok": true,
+        "status": "executed",
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 3.933906555175781e-06,
+            "max_rel": 0.006031319964677095,
+            "comparison": "allclose"
+          },
+          {
+            "index": 1,
+            "ok": true,
+            "comparison": "exact_bool"
+          }
+        ],
+        "output_shapes": [
+          [
+            1,
+            2,
+            768
+          ],
+          [
+            1,
+            2
+          ]
+        ],
+        "expected_patched_length": 1
+      },
+      "CUDAExecutionProvider": {
+        "ok": true,
+        "status": "executed",
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 2.9802322387695312e-06,
+            "max_rel": 0.010797536000609398,
+            "comparison": "allclose"
+          },
+          {
+            "index": 1,
+            "ok": true,
+            "comparison": "exact_bool"
+          }
+        ],
+        "output_shapes": [
+          [
+            1,
+            2,
+            768
+          ],
+          [
+            1,
+            2
+          ]
+        ],
+        "expected_patched_length": 1
+      }
+    },
+    "5": {
+      "CPUExecutionProvider": {
+        "ok": true,
+        "status": "executed",
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 3.933906555175781e-06,
+            "max_rel": 0.006031319964677095,
+            "comparison": "allclose"
+          },
+          {
+            "index": 1,
+            "ok": true,
+            "comparison": "exact_bool"
+          }
+        ],
+        "output_shapes": [
+          [
+            1,
+            2,
+            768
+          ],
+          [
+            1,
+            2
+          ]
+        ],
+        "expected_patched_length": 1
+      },
+      "CUDAExecutionProvider": {
+        "ok": true,
+        "status": "executed",
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 2.9802322387695312e-06,
+            "max_rel": 0.010797536000609398,
+            "comparison": "allclose"
+          },
+          {
+            "index": 1,
+            "ok": true,
+            "comparison": "exact_bool"
+          }
+        ],
+        "output_shapes": [
+          [
+            1,
+            2,
+            768
+          ],
+          [
+            1,
+            2
+          ]
+        ],
+        "expected_patched_length": 1
+      }
+    },
+    "7": {
+      "CPUExecutionProvider": {
+        "ok": true,
+        "status": "executed",
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 3.933906555175781e-06,
+            "max_rel": 0.006031319964677095,
+            "comparison": "allclose"
+          },
+          {
+            "index": 1,
+            "ok": true,
+            "comparison": "exact_bool"
+          }
+        ],
+        "output_shapes": [
+          [
+            1,
+            2,
+            768
+          ],
+          [
+            1,
+            2
+          ]
+        ],
+        "expected_patched_length": 1
+      },
+      "CUDAExecutionProvider": {
+        "ok": true,
+        "status": "executed",
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 2.9802322387695312e-06,
+            "max_rel": 0.010797536000609398,
+            "comparison": "allclose"
+          },
+          {
+            "index": 1,
+            "ok": true,
+            "comparison": "exact_bool"
+          }
+        ],
+        "output_shapes": [
+          [
+            1,
+            2,
+            768
+          ],
+          [
+            1,
+            2
+          ]
+        ],
+        "expected_patched_length": 1
+      }
+    },
+    "8": {
+      "CPUExecutionProvider": {
+        "ok": true,
+        "status": "executed",
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 4.06801700592041e-06,
+            "max_rel": 0.019090425223112106,
+            "comparison": "allclose"
+          },
+          {
+            "index": 1,
+            "ok": true,
+            "comparison": "exact_bool"
+          }
+        ],
+        "output_shapes": [
+          [
+            1,
+            3,
+            768
+          ],
+          [
+            1,
+            3
+          ]
+        ],
+        "expected_patched_length": 2
+      },
+      "CUDAExecutionProvider": {
+        "ok": true,
+        "status": "executed",
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 2.7418136596679688e-06,
+            "max_rel": 0.009109167382121086,
+            "comparison": "allclose"
+          },
+          {
+            "index": 1,
+            "ok": true,
+            "comparison": "exact_bool"
+          }
+        ],
+        "output_shapes": [
+          [
+            1,
+            3,
+            768
+          ],
+          [
+            1,
+            3
+          ]
+        ],
+        "expected_patched_length": 2
+      }
+    },
+    "9": {
+      "CPUExecutionProvider": {
+        "ok": true,
+        "status": "executed",
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 4.06801700592041e-06,
+            "max_rel": 0.019090425223112106,
+            "comparison": "allclose"
+          },
+          {
+            "index": 1,
+            "ok": true,
+            "comparison": "exact_bool"
+          }
+        ],
+        "output_shapes": [
+          [
+            1,
+            3,
+            768
+          ],
+          [
+            1,
+            3
+          ]
+        ],
+        "expected_patched_length": 2
+      },
+      "CUDAExecutionProvider": {
+        "ok": true,
+        "status": "executed",
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 2.7418136596679688e-06,
+            "max_rel": 0.009109167382121086,
+            "comparison": "allclose"
+          },
+          {
+            "index": 1,
+            "ok": true,
+            "comparison": "exact_bool"
+          }
+        ],
+        "output_shapes": [
+          [
+            1,
+            3,
+            768
+          ],
+          [
+            1,
+            3
+          ]
+        ],
+        "expected_patched_length": 2
+      }
+    },
+    "17": {
+      "CPUExecutionProvider": {
+        "ok": true,
+        "status": "executed",
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 3.4570693969726562e-06,
+            "max_rel": 0.006689981557428837,
+            "comparison": "allclose"
+          },
+          {
+            "index": 1,
+            "ok": true,
+            "comparison": "exact_bool"
+          }
+        ],
+        "output_shapes": [
+          [
+            1,
+            5,
+            768
+          ],
+          [
+            1,
+            5
+          ]
+        ],
+        "expected_patched_length": 4
+      },
+      "CUDAExecutionProvider": {
+        "ok": true,
+        "status": "executed",
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 3.107823431491852e-06,
+            "max_rel": 0.021604295819997787,
+            "comparison": "allclose"
+          },
+          {
+            "index": 1,
+            "ok": true,
+            "comparison": "exact_bool"
+          }
+        ],
+        "output_shapes": [
+          [
+            1,
+            5,
+            768
+          ],
+          [
+            1,
+            5
+          ]
+        ],
+        "expected_patched_length": 4
+      }
+    }
+  },
+  "codec_waveform_boundary": {
+    "1919": {
+      "CPUExecutionProvider": {
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 3.4421682357788086e-06,
+            "max_rel": 0.00013889398542232811,
+            "comparison": "allclose"
+          }
+        ],
+        "torch_shape": [
+          [
+            1,
+            1,
+            32
+          ]
+        ],
+        "ort_shape": [
+          [
+            1,
+            1,
+            32
+          ]
+        ]
+      },
+      "CUDAExecutionProvider": {
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 5.900859832763672e-06,
+            "max_rel": 0.0002705116057768464,
+            "comparison": "allclose"
+          }
+        ],
+        "torch_shape": [
+          [
+            1,
+            1,
+            32
+          ]
+        ],
+        "ort_shape": [
+          [
+            1,
+            1,
+            32
+          ]
+        ]
+      }
+    },
+    "1920": {
+      "CPUExecutionProvider": {
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 3.4421682357788086e-06,
+            "max_rel": 0.00013889398542232811,
+            "comparison": "allclose"
+          }
+        ],
+        "torch_shape": [
+          [
+            1,
+            1,
+            32
+          ]
+        ],
+        "ort_shape": [
+          [
+            1,
+            1,
+            32
+          ]
+        ]
+      },
+      "CUDAExecutionProvider": {
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 5.900859832763672e-06,
+            "max_rel": 0.0002705116057768464,
+            "comparison": "allclose"
+          }
+        ],
+        "torch_shape": [
+          [
+            1,
+            1,
+            32
+          ]
+        ],
+        "ort_shape": [
+          [
+            1,
+            1,
+            32
+          ]
+        ]
+      }
+    },
+    "1921": {
+      "CPUExecutionProvider": {
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 4.76837158203125e-06,
+            "max_rel": 0.0003739346284419298,
+            "comparison": "allclose"
+          }
+        ],
+        "torch_shape": [
+          [
+            1,
+            2,
+            32
+          ]
+        ],
+        "ort_shape": [
+          [
+            1,
+            2,
+            32
+          ]
+        ]
+      },
+      "CUDAExecutionProvider": {
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 1.0609626770019531e-05,
+            "max_rel": 0.0009885025210678577,
+            "comparison": "allclose"
+          }
+        ],
+        "torch_shape": [
+          [
+            1,
+            2,
+            32
+          ]
+        ],
+        "ort_shape": [
+          [
+            1,
+            2,
+            32
+          ]
+        ]
+      }
+    },
+    "479999": {
+      "CPUExecutionProvider": {
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 4.76837158203125e-06,
+            "max_rel": 0.00029427686240524054,
+            "comparison": "allclose"
+          }
+        ],
+        "torch_shape": [
+          [
+            1,
+            250,
+            32
+          ]
+        ],
+        "ort_shape": [
+          [
+            1,
+            250,
+            32
+          ]
+        ]
+      },
+      "CUDAExecutionProvider": {
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 7.987022399902344e-06,
+            "max_rel": 0.0021187050733715296,
+            "comparison": "allclose"
+          }
+        ],
+        "torch_shape": [
+          [
+            1,
+            250,
+            32
+          ]
+        ],
+        "ort_shape": [
+          [
+            1,
+            250,
+            32
+          ]
+        ]
+      }
+    },
+    "480000": {
+      "CPUExecutionProvider": {
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 4.76837158203125e-06,
+            "max_rel": 0.00029427686240524054,
+            "comparison": "allclose"
+          }
+        ],
+        "torch_shape": [
+          [
+            1,
+            250,
+            32
+          ]
+        ],
+        "ort_shape": [
+          [
+            1,
+            250,
+            32
+          ]
+        ]
+      },
+      "CUDAExecutionProvider": {
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 7.987022399902344e-06,
+            "max_rel": 0.0021187050733715296,
+            "comparison": "allclose"
+          }
+        ],
+        "torch_shape": [
+          [
+            1,
+            250,
+            32
+          ]
+        ],
+        "ort_shape": [
+          [
+            1,
+            250,
+            32
+          ]
+        ]
+      }
+    },
+    "480001": {
+      "CPUExecutionProvider": {
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 4.76837158203125e-06,
+            "max_rel": 0.00029427686240524054,
+            "comparison": "allclose"
+          }
+        ],
+        "torch_shape": [
+          [
+            1,
+            251,
+            32
+          ]
+        ],
+        "ort_shape": [
+          [
+            1,
+            251,
+            32
+          ]
+        ]
+      },
+      "CUDAExecutionProvider": {
+        "ok": true,
+        "errors": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 7.987022399902344e-06,
+            "max_rel": 0.0021187050733715296,
+            "comparison": "allclose"
+          }
+        ],
+        "torch_shape": [
+          [
+            1,
+            251,
+            32
+          ]
+        ],
+        "ort_shape": [
+          [
+            1,
+            251,
+            32
+          ]
+        ]
+      }
+    }
+  },
+  "external_data_missing": {
+    "text_caption_encoder": {
+      "ok": true,
+      "status": "rejected",
+      "error": "UnicodeDecodeError('utf-8', b'[ONNXRuntimeError] : 6 : RUNTIME_EXCEPTION : Exception during initialization: file_size: \\x8ew\\x92\\xe8\\x82\\xb3\\x82\\xea\\x82\\xbd\\x83t\\x83@\\x83C\\x83\\x8b\\x82\\xaa\\x8c\\xa9\\x82\\xc2\\x82\\xa9\\x82\\xe8\\x82\\xdc\\x82\\xb9\\x82\\xf1\\x81B: \"C:\\\\Users\\\\rero2\\\\AppData\\\\Local\\\\Temp\\\\irodori-ort-missing-nbpnrtr_\\\\text_caption_encoder.onnx.data\"', 89, 90, 'invalid start byte')"
+    },
+    "speaker_encoder": {
+      "ok": true,
+      "status": "rejected",
+      "error": "UnicodeDecodeError('utf-8', b'[ONNXRuntimeError] : 6 : RUNTIME_EXCEPTION : Exception during initialization: file_size: \\x8ew\\x92\\xe8\\x82\\xb3\\x82\\xea\\x82\\xbd\\x83t\\x83@\\x83C\\x83\\x8b\\x82\\xaa\\x8c\\xa9\\x82\\xc2\\x82\\xa9\\x82\\xe8\\x82\\xdc\\x82\\xb9\\x82\\xf1\\x81B: \"C:\\\\Users\\\\rero2\\\\AppData\\\\Local\\\\Temp\\\\irodori-ort-missing-n4izkes9\\\\speaker_encoder.onnx.data\"', 89, 90, 'invalid start byte')"
+    },
+    "duration_predictor": {
+      "ok": true,
+      "status": "rejected",
+      "error": "UnicodeDecodeError('utf-8', b'[ONNXRuntimeError] : 6 : RUNTIME_EXCEPTION : Exception during initialization: file_size: \\x8ew\\x92\\xe8\\x82\\xb3\\x82\\xea\\x82\\xbd\\x83t\\x83@\\x83C\\x83\\x8b\\x82\\xaa\\x8c\\xa9\\x82\\xc2\\x82\\xa9\\x82\\xe8\\x82\\xdc\\x82\\xb9\\x82\\xf1\\x81B: \"C:\\\\Users\\\\rero2\\\\AppData\\\\Local\\\\Temp\\\\irodori-ort-missing-czldq89e\\\\duration_predictor.onnx.data\"', 89, 90, 'invalid start byte')"
+    },
+    "dit_step": {
+      "ok": true,
+      "status": "rejected",
+      "error": "UnicodeDecodeError('utf-8', b'[ONNXRuntimeError] : 6 : RUNTIME_EXCEPTION : Exception during initialization: file_size: \\x8ew\\x92\\xe8\\x82\\xb3\\x82\\xea\\x82\\xbd\\x83t\\x83@\\x83C\\x83\\x8b\\x82\\xaa\\x8c\\xa9\\x82\\xc2\\x82\\xa9\\x82\\xe8\\x82\\xdc\\x82\\xb9\\x82\\xf1\\x81B: \"C:\\\\Users\\\\rero2\\\\AppData\\\\Local\\\\Temp\\\\irodori-ort-missing-82jjepdk\\\\dit_step.onnx.data\"', 89, 90, 'invalid start byte')"
+    },
+    "codec_encoder": {
+      "ok": true,
+      "status": "rejected",
+      "error": "UnicodeDecodeError('utf-8', b'[ONNXRuntimeError] : 6 : RUNTIME_EXCEPTION : Exception during initialization: file_size: \\x8ew\\x92\\xe8\\x82\\xb3\\x82\\xea\\x82\\xbd\\x83t\\x83@\\x83C\\x83\\x8b\\x82\\xaa\\x8c\\xa9\\x82\\xc2\\x82\\xa9\\x82\\xe8\\x82\\xdc\\x82\\xb9\\x82\\xf1\\x81B: \"C:\\\\Users\\\\rero2\\\\AppData\\\\Local\\\\Temp\\\\irodori-ort-missing-036j4q8i\\\\codec_encoder.onnx.data\"', 89, 90, 'invalid start byte')"
+    },
+    "codec_decoder": {
+      "ok": true,
+      "status": "rejected",
+      "error": "UnicodeDecodeError('utf-8', b'[ONNXRuntimeError] : 6 : RUNTIME_EXCEPTION : Exception during initialization: file_size: \\x8ew\\x92\\xe8\\x82\\xb3\\x82\\xea\\x82\\xbd\\x83t\\x83@\\x83C\\x83\\x8b\\x82\\xaa\\x8c\\xa9\\x82\\xc2\\x82\\xa9\\x82\\xe8\\x82\\xdc\\x82\\xb9\\x82\\xf1\\x81B: \"C:\\\\Users\\\\rero2\\\\AppData\\\\Local\\\\Temp\\\\irodori-ort-missing-4wq2aolh\\\\codec_decoder.onnx.data\"', 89, 90, 'invalid start byte')"
+    }
+  },
+  "four_conditions": {
+    "null": {
+      "has_speaker": false,
+      "has_caption": false,
+      "providers": {
+        "CPUExecutionProvider": {
+          "ort_log_frames": 5.103736400604248,
+          "torch_log_frames": 5.103736400604248,
+          "frame_delta": 0.0,
+          "duration_pass": true,
+          "dit_pass": true,
+          "dit_errors": [
+            {
+              "index": 0,
+              "ok": true,
+              "max_abs": 3.5762786865234375e-06,
+              "max_rel": 0.0009525134228169918,
+              "comparison": "allclose"
+            }
+          ],
+          "pass": true
+        },
+        "CUDAExecutionProvider": {
+          "ort_log_frames": 5.103736400604248,
+          "torch_log_frames": 5.103736400604248,
+          "frame_delta": 0.0,
+          "duration_pass": true,
+          "dit_pass": true,
+          "dit_errors": [
+            {
+              "index": 0,
+              "ok": true,
+              "max_abs": 5.9604644775390625e-06,
+              "max_rel": 0.0002570896176621318,
+              "comparison": "allclose"
+            }
+          ],
+          "pass": true
+        }
+      },
+      "frame_delta": 0.0,
+      "pass": true
+    },
+    "speaker": {
+      "has_speaker": true,
+      "has_caption": false,
+      "providers": {
+        "CPUExecutionProvider": {
+          "ort_log_frames": 5.57573938369751,
+          "torch_log_frames": 5.57573938369751,
+          "frame_delta": 0.0,
+          "duration_pass": true,
+          "dit_pass": true,
+          "dit_errors": [
+            {
+              "index": 0,
+              "ok": true,
+              "max_abs": 4.5299530029296875e-06,
+              "max_rel": 0.0013994874898344278,
+              "comparison": "allclose"
+            }
+          ],
+          "pass": true
+        },
+        "CUDAExecutionProvider": {
+          "ort_log_frames": 5.575738906860352,
+          "torch_log_frames": 5.57573938369751,
+          "frame_delta": 0.0001258585820096414,
+          "duration_pass": true,
+          "dit_pass": true,
+          "dit_errors": [
+            {
+              "index": 0,
+              "ok": true,
+              "max_abs": 3.2186508178710938e-06,
+              "max_rel": 0.000202313662157394,
+              "comparison": "allclose"
+            }
+          ],
+          "pass": true
+        }
+      },
+      "frame_delta": 0.0001258585820096414,
+      "pass": true
+    },
+    "caption": {
+      "has_speaker": false,
+      "has_caption": true,
+      "providers": {
+        "CPUExecutionProvider": {
+          "ort_log_frames": 4.817713737487793,
+          "torch_log_frames": 4.817713737487793,
+          "frame_delta": 0.0,
+          "duration_pass": true,
+          "dit_pass": true,
+          "dit_errors": [
+            {
+              "index": 0,
+              "ok": true,
+              "max_abs": 5.304813385009766e-06,
+              "max_rel": 0.0007241477142088115,
+              "comparison": "allclose"
+            }
+          ],
+          "pass": true
+        },
+        "CUDAExecutionProvider": {
+          "ort_log_frames": 4.817713737487793,
+          "torch_log_frames": 4.817713737487793,
+          "frame_delta": 0.0,
+          "duration_pass": true,
+          "dit_pass": true,
+          "dit_errors": [
+            {
+              "index": 0,
+              "ok": true,
+              "max_abs": 4.291534423828125e-06,
+              "max_rel": 0.0002033723721979186,
+              "comparison": "allclose"
+            }
+          ],
+          "pass": true
+        }
+      },
+      "frame_delta": 0.0,
+      "pass": true
+    },
+    "speaker+caption": {
+      "has_speaker": true,
+      "has_caption": true,
+      "providers": {
+        "CPUExecutionProvider": {
+          "ort_log_frames": 5.2131757736206055,
+          "torch_log_frames": 5.2131757736206055,
+          "frame_delta": 0.0,
+          "duration_pass": true,
+          "dit_pass": true,
+          "dit_errors": [
+            {
+              "index": 0,
+              "ok": true,
+              "max_abs": 1.52587890625e-05,
+              "max_rel": 0.0001723103632684797,
+              "comparison": "allclose"
+            }
+          ],
+          "pass": true
+        },
+        "CUDAExecutionProvider": {
+          "ort_log_frames": 5.2131757736206055,
+          "torch_log_frames": 5.2131757736206055,
+          "frame_delta": 0.0,
+          "duration_pass": true,
+          "dit_pass": true,
+          "dit_errors": [
+            {
+              "index": 0,
+              "ok": true,
+              "max_abs": 4.0531158447265625e-06,
+              "max_rel": 0.0001925284886965528,
+              "comparison": "allclose"
+            }
+          ],
+          "pass": true
+        }
+      },
+      "frame_delta": 0.0,
+      "pass": true
+    }
+  },
+  "manifest_sha256": "47dcc95d84df7e179404b134f63684c7854924ecc8019f1b6bd749d029cbe78b",
+  "manifest_validation": {
+    "ok": true,
+    "errors": []
+  },
+  "codec_load": {
+    "status": "loaded",
+    "repository": "Aratako/Semantic-DACVAE-Japanese-32dim",
+    "weights_sha256": "022b6ad793fcb264e295f8773401f7a440e5b51299028a9ec5a55e8252298cb1",
+    "hash_match": true
+  },
+  "short_ort_wav": {
+    "status": "generated",
+    "path": "ort-text-dit-codec-smoke.wav",
+    "sample_rate": 48000,
+    "samples": 15360,
+    "peak": 0.9999553561210632,
+    "rms": 0.38378751277923584,
+    "method": "text_caption_encoder->dit_step(one_step)->codec_decoder"
+  },
+  "ort_smoke": {
+    "status": "generated",
+    "path": "ort-full-smoke.wav",
+    "method": "official tokenizer+duration features+Euler arithmetic; text_caption_encoder->codec_encoder->speaker_encoder->duration_predictor->40-step independent CFG dit_step->codec_decoder (all ORT)",
+    "all_neural_stages_onnx": true,
+    "reference_options": {
+      "max_ref_seconds": 120.0,
+      "normalize_db": null,
+      "ensure_max": false,
+      "tail_trim_samples": 0
+    },
+    "elapsed_seconds": 20.415,
+    "sample_rate": 48000,
+    "samples": 228480,
+    "seconds": 4.76,
+    "finite": true,
+    "peak": 0.8374168276786804,
+    "rms": 0.16027267277240753,
+    "used_seed": 0,
+    "predicted_frames": 119.31668090820312,
+    "latent_steps": 119,
+    "final_frame_delta": 0.0,
+    "reference_latent_steps": 250,
+    "dit_steps": 40,
+    "trajectory_sha256": "0449ce17dcd66f096a753b42fd672d9e566f8a9536c804042b28b4066117128e",
+    "ort_session_runs": {
+      "text_caption_encoder": 1,
+      "speaker_encoder": 1,
+      "duration_predictor": 1,
+      "dit_step": 40,
+      "codec_encoder": 1,
+      "codec_decoder": 1
+    },
+    "oracle_checks": {
+      "text_caption_encoder": {
+        "ok": true,
+        "details": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 1.5497207641601562e-06,
+            "max_rel": 0.0011413447791710496,
+            "comparison": "allclose"
+          },
+          {
+            "index": 1,
+            "ok": true,
+            "max_abs": 0.0,
+            "max_rel": 0.0,
+            "comparison": "allclose"
+          }
+        ],
+        "input_sha256": "0001aa9a6ace5d168385e4e3b8e9818bc745edea8087abe9c5e2fc3f23d0bb39"
+      },
+      "codec_encoder": {
+        "ok": true,
+        "details": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 2.1785497665405273e-05,
+            "max_rel": 0.012098435312509537,
+            "comparison": "allclose"
+          }
+        ],
+        "input_sha256": "5f909c8760d1f7a42f0575941a4d535a25a0a8a6d8c94fca9e68340c006e80f8"
+      },
+      "speaker_encoder": {
+        "ok": true,
+        "details": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 1.811981201171875e-05,
+            "max_rel": 0.032033417373895645,
+            "comparison": "allclose"
+          },
+          {
+            "index": 1,
+            "ok": true,
+            "comparison": "exact_bool"
+          }
+        ],
+        "input_sha256": "c776533ce70ad6caff82c746709453bc28cd3980fb8cd4467bf3fee0b66ed123"
+      },
+      "duration_predictor": {
+        "ok": true,
+        "details": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 0.0,
+            "max_rel": 0.0,
+            "comparison": "allclose"
+          }
+        ],
+        "input_sha256": "b904916ea92df3ecbfa51156daec9ec0b9a79a9b4b305e76a4ef32db788d9940"
+      },
+      "dit_step": {
+        "ok": true,
+        "details": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 2.384185791015625e-06,
+            "max_rel": 0.0025092074647545815,
+            "comparison": "allclose"
+          }
+        ],
+        "input_sha256": "199ce2c8bd741fdc6abc7ebe27fc48912ecd0b1cf73fd8f166ed00278941c14a"
+      },
+      "codec_decoder": {
+        "ok": true,
+        "details": [
+          {
+            "index": 0,
+            "ok": true,
+            "max_abs": 5.245208740234375e-06,
+            "max_rel": 0.373731791973114,
+            "comparison": "allclose"
+          }
+        ],
+        "input_sha256": "815b033622bf8ef8c9cd9a997b3477e04d136434bbb0de5e56170bab746e99a1"
+      }
+    },
+    "cuda_profiles": {
+      "text_caption_encoder": {
+        "path": "irodori_text_caption_encoder_CUD_1788791383609583200_2026-09-07_23-29-43.json",
+        "providers": [
+          "CPUExecutionProvider",
+          "CUDAExecutionProvider"
+        ],
+        "events": 3414
+      },
+      "speaker_encoder": {
+        "path": "irodori_speaker_encoder_CUD_1788791385659563200_2026-09-07_23-29-45.json",
+        "providers": [
+          "CPUExecutionProvider",
+          "CUDAExecutionProvider"
+        ],
+        "events": 1990
+      },
+      "duration_predictor": {
+        "path": "irodori_duration_predictor_CUD_1788791386352463200_2026-09-07_23-29-46.json",
+        "providers": [
+          "CPUExecutionProvider",
+          "CUDAExecutionProvider"
+        ],
+        "events": 194
+      },
+      "dit_step": {
+        "path": "irodori_dit_step_CUD_1788791386424613800_2026-09-07_23-29-46.json",
+        "providers": [
+          "CPUExecutionProvider",
+          "CUDAExecutionProvider"
+        ],
+        "events": 155682
+      },
+      "codec_encoder": {
+        "path": "irodori_codec_encoder_CUD_1788791388956718900_2026-09-07_23-29-48.json",
+        "providers": [
+          "CPUExecutionProvider",
+          "CUDAExecutionProvider"
+        ],
+        "events": 302
+      },
+      "codec_decoder": {
+        "path": "irodori_codec_decoder_CUD_1788791389360970000_2026-09-07_23-29-49.json",
+        "providers": [
+          "CUDAExecutionProvider"
+        ],
+        "events": 281
+      }
+    },
+    "oracle_pass": true,
+    "sha256": "fe3f46551dba91f8d7c1289ff6ea4a0f3a8f381378cb61657b29d47e72ef2afe"
+  },
+  "finished_at": "2026-09-07T14:30:03Z",
+  "checks": {
+    "graphs": true,
+    "dynamic_length": true,
+    "speaker_ref_boundary": true,
+    "codec_waveform_boundary": true,
+    "four_conditions": true,
+    "external_data_missing": true,
+    "ort_smoke": true,
+    "cuda_required": true
+  },
+  "resources": {
+    "bundle_bytes": 4794293787,
+    "graph_bytes": 4777847,
+    "external_data_bytes": 4789515940,
+    "unique_small_file_bytes": 4777847,
+    "shared_weight_hashes": [],
+    "rss_mib": 10178.55078125,
+    "cuda_device": "NVIDIA GeForce RTX 5090",
+    "cuda_allocated_peak_mib": 0.0146484375,
+    "cuda_reserved_peak_mib": 2.0
+  }
+}

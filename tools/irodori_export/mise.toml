@@ -1,0 +1,7 @@
+[tools]
+python = "3.11.15"
+uv = "0.12.9"
+
+[tasks]
+export = "uv run --python 3.11 --no-sync python export.py"
+parity = "uv run --python 3.11 --no-sync python parity.py"
