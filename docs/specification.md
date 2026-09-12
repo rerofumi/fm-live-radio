@@ -1,12 +1,26 @@
 # Current Specification
 
-最終確認日: 2026-09-08
+最終確認日: 2026-09-12
 
 この文書は、現在実装されている `fm-live-radio` の実装仕様を示す。現行コードと一致する構造、データ、フロー、環境制約のみを記載する。
 
 ## 2026-09-08 as-built（WP-5実装）
 
 v4.1は `manifest.json` のschema/graph/tokenizer/external dataをTalk開始前に検査し、1 Talk内でRuntimeを再利用する。製品bundleへのparity fixture同梱・fixture hashは必須ではなく、fixture hashはparity検証時だけ記録・比較する。新規設定のIrodori modelDirはv4.1で、保存済みv3・任意パスは保持する。`cmd/tts-benchmark` は製品Service/Talk経路で固定10原稿（200–300字）のpreflight/load/各文/結合/close、RTF、期限、推論中pollしたnvidia-smi process VRAM（WDDMでprocess値がN/Aの場合は厳密PID/DXGI LUID/GPU UUID照合のWindows CIM `DedicatedUsage`へfallbackし、device-totalは正式process値へ代入しない）、20回定常反復、p95 v4/v3比とWAV manifestをJSON/CSVへ保存する。`cmd/tts-e2e` はRSS/LLMだけloopback fixtureを使い、実Stable Audio BGM・製品Player・Talk・audio server/loudness、v4/v3子プロセス再起動、preflight負例、Skip/取消join/close/active shutdownを実行する。Stable Audioやv4資産が無い場合はfixtureへフォールバックせず非zeroで報告する。CPU/CUDA/autoはORT共有のため別プロセスで実行する。
+
+## 2026-09-12 as-built（生成リソース制御 / WP-1〜3）
+
+`internal/generation.Arbiter` はプロセス共有・容量1の予約調停器であり、`musicgen.Service.Generate` と `localtts.Service` の Runtime ロード直前から推論完了後の `Close` 完了までを覆う。待機時は Music を優先し、同種は FIFO とする。`generation.Reservation` は `generation.WithReservation` で Player からサービスへ一度だけ転送できる。待機中の取消・期限切れはロードせず、許可後の取消は実 worker の join と Runtime close 後に `Lease.Release` する。
+
+`Player` は同期取得と先読みを Talk/BGM の需要 job に統合し、同じ需要を二重生成しない。`PrefetchNext` は Music reservation を同期登録してから Talk worker を登録する。同時待機では Music の entry gate を先に通す。`musicReady` FIFO は未再生 ready 曲と予約を合わせて最大2件とし、最初の1件を返却後、不足分だけを逐次補充する。補充失敗は同じ境界で再試行せず、明示的な hint または消費が次の retry boundary になる。
+
+Talk slot で Talk が未完成なら、`NextItem` はその Talk job を継続し、ready BGM があれば返却する。BGM も空の場合は同じ Music job に合流して待つ。Talk slot・履歴は Talk を実際に採用するまで消費せず、Talk 失敗時だけ slot を一度消費して BGM fallback へ進む。
+
+ジャンル変更は `musicEpoch` だけを進め、music FIFO と旧 music job を無効化する。現在再生中の item、Talk job、記事履歴は維持する。生成結果は snapshot の epoch/owner と正規化済み genre を照合し、`RegisterFile` 後の最終公開直前にも `generation`、`closed`、epoch、genre を同一 mutex 下で再確認する。不一致なら登録済み URL を解放して最新設定で選び直すため、A→B→C / A→B→A の遅延結果は公開されない。同値の genre 保存は音楽以外の状態をリセットしない。
+
+`musicgen.Service` は生成時 genre を WAV sidecar（`<wav>.json`）へ atomic 保存し、`PickFallbackForGenre` は正規化済み genre と一致する有効 sidecar の WAV だけを候補にする。`TrimCache` は `fileprotect` の複数保護 path とその sidecar を維持し、保護数が上限を超える間は削除を延期する。`CacheLimit` はディスク保存件数であり、Player の未再生2曲枠とは独立する。
+
+`audio.Server.RegisterFile` は token の TTL と共有参照を登録し、HTTP の `/audio/<token>` 読み取り中は request-scoped reference を保持する。`ReleaseAudioURL`、TTL失効、`Close` は対応 token/envelope と保護を解放する。WAV envelope の precompute に失敗しても audio URL 登録は成功し、`/loudness` は 204、未知/期限切れ token は 404 を返す。
 
 ## 技術スタック
 
@@ -35,7 +49,7 @@ v4.1は `manifest.json` のschema/graph/tokenizer/external dataをTalk開始前�
 7. `musicgen.New()`
 8. `player.New(cfg)`
 
-`App.shutdown` は audio server を停止し、`generation.Shutdown()` で ONNX Runtime environment を破棄する。
+`App.shutdown` は `player.Shutdown()` で Player 所有の worker と先読みを cancel→join し、audio server の token を Close で解放した後、`generation.Shutdown()` で ONNX Runtime environment を破棄する。
 
 ## Wails API
 
@@ -49,6 +63,8 @@ v4.1は `manifest.json` のschema/graph/tokenizer/external dataをTalk開始前�
 - `PrefetchTalk()`
 
 `SaveConfig` は config を保存し、既存 `player` に `UpdateConfig` を反映する。`GetNextItem` と `SkipCurrent` は `player` から返された履歴更新がある場合、`history.json` に保存する。
+
+`SaveConfig` は Stable Audio 3 genre を正規化してから保存する。genre だけが変わる保存は `Player.UpdateConfigFromSave` の music-only 経路を通り、music epoch/FIFO/予約だけを更新する。同値の正規化結果では Talk、現在 item、履歴、再生カウンタをリセットしない。`UpdateStableAudio3Genre` も同じ music-only 経路を使う。
 
 ## データモデル
 
@@ -192,19 +208,18 @@ v4.1は `manifest.json` のschema/graph/tokenizer/external dataをTalk開始前�
 1. `GetNextItem` が `Player.NextItem` を呼ぶ。
 2. `pendingSilence` が true の場合、まず `silence` item を返す。
 3. `bgmCountSinceLastTalk >= talk.cycleBgmCount` なら Talk slot と判断する。
-4. prefetched Talk があれば consume して `talk` item を返す。
-5. Talk slot で prefetched Talk がなければ、同期的に `talk.Service.Generate` を試みる。
-6. Talk 生成に失敗した場合は warning を log に残し、BGM へ fallback する。
-7. BGM として `stable_audio_3` の item を返す。
-8. BGM 再生後、Talk slot が近ければ Talk prefetch を開始する。
-9. `stable_audio_3` BGM 再生後は次の Music prefetch も開始する。
+4. ready Talk があれば consume して `talk` item を返す。
+5. Talk slot で Talk job が未完成なら、その job を維持したまま ready BGM を返す。BGM が空なら同じ Music job を待つ。
+6. Talk job がなければ同期取得と既存先読みを同じ job に合流する。Talk 生成失敗時は slot を一度消費し、BGM fallback または生成エラーを返す。
+7. BGM 選択は `musicReady` FIFO の先頭を消費し、空なら同じ Music job を待つ。登録・公開直前に epoch/genre/owner を再確認する。
+8. BGM 消費後は未再生 ready＋予約が2件になるまで不足分だけ Music を補充する。Talk slot が近い同一契機では Music reservation を先に登録してから Talk prefetch を開始する。
 
 `Skip` の動作:
 
 - BGM skip は BGM count を進める。
 - Talk skip は Talk slot を消費し、ready Talk を破棄する。
 - Silence skip は無音を消費する。
-- in-flight の Talk / Music prefetch は cancel される。
+- in-flight の Talk / Music prefetch は cancel されるが、実 worker の join と Runtime close 完了まで稼働数を保持する。
 
 ## Audio server
 
@@ -214,6 +229,7 @@ v4.1は `manifest.json` のschema/graph/tokenizer/external dataをTalk開始前�
 - `RegisterFile(path, ttl)` は file path を token と TTL に紐づける。
 - token は UUID で生成される。
 - expired token は request 時と 30 秒ごとの GC loop で削除される。expired 時には対応する envelope cache も削除される。
+- token 登録時と HTTP `/audio/<token>` 読み取り中は `fileprotect` の参照を保持する。`ReleaseAudioURL`、TTL失効、`Close` は token と envelope を削除し、対応する参照を解放する。読み取り中の request-scoped reference が残るため、`TrimCache` は配信中の WAV を削除しない。
 - MIME type は file extension から best-effort で設定される。
 - `RegisterFile` は対象 file 拡張子が `.wav` の場合のみ、16-bit PCM WAV と仮定して loudness envelope を計算してメモリ上にキャッシュする（`audiofmt.ComputeWavLoudnessEnvelopeFile`、window 50 ms）。decode 失敗・非 WAV は log warning のみとし、`RegisterFile` 自体は成功させる。
 - `/loudness/<token>` は JSON response `{windowMs, sampleRate, durationSec, rms, peak?}` を返す。値はすべて `[0, 1]` に clamp 済みの正規化値（`abs(sample) / 32768`）。
@@ -221,6 +237,7 @@ v4.1は `manifest.json` のschema/graph/tokenizer/external dataをTalk開始前�
   - envelope cache 未生成（非 WAV / decode 失敗など）: `204 No Content`。
   - 成功時に `Access-Control-Allow-Origin: *`、`Access-Control-Allow-Methods: GET, OPTIONS`、`Access-Control-Allow-Headers: *` を付与し、`OPTIONS` preflight を 204 で許可する。
 - `Server.LoudnessURLForAudioURL(audioURL)` は `RegisterFile` が返した audio URL から対応する `/loudness/<token>` URL を導出するヘルパー。`player` から `PlayableItem.LoudnessURL` の設定に使う。
+- `audio.Server` の URL 参照保護は Player FIFO の生成結果受渡しと組み合わせて使う。`musicgen.ProtectResult` が FIFO/選択中の WAV を保持し、URL 登録後は server token の参照へ所有権を移す。
 
 ## BGM 実装
 
@@ -238,8 +255,9 @@ v4.1は `manifest.json` のschema/graph/tokenizer/external dataをTalk開始前�
   - `stableaudio/pipeline` の runtime を初期化して `Synthesize` を実行する。
   - 成功後に cache trimming を行う。
   - 戻り値 `Result` には `Genre`（正規化済み）と `Prompt` を含める。
+- `Generate` は `generation.Arbiter` に Music 予約を登録し、Runtime の load 前から `Close` 完了まで lease を保持する。ctx から同種の未消費予約を受け取った場合はそれを一度だけ消費する。
 - `Fallback(cfg)`:
-  - output dir から fallback WAV を選ぶ。
+  - output dir から現在の正規化済み genre と sidecar provenance が一致する fallback WAV を選ぶ。sidecar がない、壊れている、または genre が不一致の WAV は候補にしない。
   - 戻り値 `Result` には `Genre`（正規化済み）を含める。
 
 seed 解決:
@@ -261,11 +279,13 @@ seed 解決:
   - `minimal electronica`: minimal electronic composition、sparse synth patterns、precise soft pulses、restrained bass、clean modern atmosphere。
   - `ambient music`: ambient soundscape、slow evolving pads、airy textures、no strong beat、spacious calm immersive atmosphere。
 - `playable.Source` には `genre` と `prompt` を含める。
-- ジャンル更新時の非中断挙動: `App.UpdateStableAudio3Genre` 経由の保存は `player.UpdateStableAudio3Genre` を呼び、cycle reset / prefetch clear を行わない。これにより再生中・prefetch 中の BGM を中断しない。
+- ジャンル更新時の非中断挙動: `App.UpdateStableAudio3Genre` または genre-only の `App.SaveConfig` は `player.UpdateStableAudio3Genre` / `UpdateConfigFromSave` を呼び、Talk/current item/history を維持する。`musicEpoch` を進めて music FIFO と旧音楽予約だけを無効化し、変更後に選択確定する次の BGM へ反映する。同値の正規化結果では epoch を進めない。
 
 ## Talk 実装
 
 `internal/talk.Service` が Talk 生成を扱う。
+
+`localtts.Service` は `generation.Arbiter` の Talk 予約を Runtime load 直前から `Close` 完了まで保持する。RSS/LLM の準備、文単位の合成、結合を同一 Talk の処理として扱い、cancel 後も実 worker の join と close が完了してから lease を解放する。
 
 1. `Talk.Enabled` と RSS URL の有無を確認する。
 2. `rss.Picker.Pick` で未使用 article を選ぶ。

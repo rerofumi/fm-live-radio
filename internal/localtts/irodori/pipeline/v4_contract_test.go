@@ -1,8 +1,6 @@
 package pipeline
 
 import (
-	"encoding/json"
-	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -99,17 +97,37 @@ func TestV4DurationFeaturesOfficialUnicodeCounts(t *testing.T) {
 }
 
 func TestV4FixtureDurationFeaturesUseProductAndRejectTamper(t *testing.T) {
-	fixturePath := filepath.Join("..", "..", "..", "..", "model", "irodori-v4.1", "go-parity-fixture.json")
-	data, err := os.ReadFile(fixturePath)
-	if err != nil {
-		t.Fatal(err)
+	// Keep this contract fixture small and repository-local. The values below
+	// are the independently recorded product contract for "abc。" with
+	// token_count=5 and max_text_len=256; only the speaker flag differs by
+	// condition. This test must remain runnable without a model checkout.
+	const (
+		tokenCount = 5
+		maxTextLen = 256
+	)
+	baseFeatures := []float32{0.01953125, 0.25791135, 1.25, 0.31546488, 0, 0, 0, 0, 0, 0, 0, 0, 0.75, 0}
+	speakerFeatures := append([]float32(nil), baseFeatures...)
+	speakerFeatures[13] = 1
+	condition := func(hasSpeaker bool) parityCondition {
+		features := baseFeatures
+		if hasSpeaker {
+			features = speakerFeatures
+		}
+		return parityCondition{
+			DurationFeatures:   parityValue{Dtype: "float32", Shape: []int64{1, 14}, Values: mustJSON(features)},
+			DurationTokenCount: tokenCount,
+			DurationMaxTextLen: maxTextLen,
+			DurationHasSpeaker: hasSpeaker,
+		}
 	}
-	var fixture parityFixture
-	if err := json.Unmarshal(data, &fixture); err != nil {
-		t.Fatal(err)
-	}
-	if fixture.DurationFeatureText == "" || len(fixture.Conditions) != 4 {
-		t.Fatalf("fixture duration schema missing: text=%q conditions=%d", fixture.DurationFeatureText, len(fixture.Conditions))
+	fixture := parityFixture{
+		DurationFeatureText: "abc。",
+		Conditions: map[string]parityCondition{
+			"speaker+caption": condition(true),
+			"speaker-only":    condition(true),
+			"caption-only":    condition(false),
+			"plain":           condition(false),
+		},
 	}
 	for name, condition := range fixture.Conditions {
 		got, err := buildAndCompareFixtureDurationFeatures(name, fixture.DurationFeatureText, condition, 14)

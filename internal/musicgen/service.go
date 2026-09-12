@@ -2,6 +2,7 @@ package musicgen
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/rand/v2"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"fm-live-radio/internal/domain"
+	"fm-live-radio/internal/fileprotect"
 	"fm-live-radio/internal/generation"
 	sa3 "fm-live-radio/internal/musicgen/stableaudio/pipeline"
 )
@@ -26,10 +28,20 @@ type Result struct {
 type Service struct {
 	observerMu sync.RWMutex
 	observer   sa3.EventObserver
+	arbiter    *generation.Arbiter
 }
 
 func New() *Service {
-	return &Service{}
+	return NewWithArbiter(generation.SharedArbiter())
+}
+
+// NewWithArbiter provides an isolated scheduler for deterministic service
+// tests. Product construction uses the process-shared arbiter via New.
+func NewWithArbiter(arbiter *generation.Arbiter) *Service {
+	if arbiter == nil {
+		arbiter = generation.SharedArbiter()
+	}
+	return &Service{arbiter: arbiter}
 }
 
 // SetObserver installs diagnostic runtime events for verification harnesses.
@@ -46,16 +58,35 @@ func (s *Service) observerSnapshot() sa3.EventObserver {
 }
 
 func (s *Service) Generate(ctx context.Context, cfg domain.AppConfig) (Result, error) {
-	if strings.TrimSpace(cfg.StableAudio3.ModelDir) == "" || strings.TrimSpace(cfg.StableAudio3.OutputDir) == "" {
-		return Result{}, generation.ErrProviderNotConfigured
+	arbiter := s.arbiter
+	if arbiter == nil {
+		arbiter = generation.SharedArbiter()
 	}
-	if err := generation.ConfigureExecutionProvider(cfg.LocalInference.ExecutionProvider, cfg.LocalInference.DeviceID); err != nil {
+	reservation := generation.ReservationFromContext(ctx, generation.KindMusic)
+	if reservation != nil && reservation.Arbiter() != arbiter {
+		reservation.Release()
+		reservation = nil
+	}
+	if reservation == nil {
+		var err error
+		reservation, err = arbiter.Reserve(ctx, generation.KindMusic)
+		if err != nil {
+			return Result{}, err
+		}
+	}
+	defer reservation.Release()
+	if err := ctx.Err(); err != nil {
 		return Result{}, err
 	}
-	if err := generation.Init(cfg.LocalInference.ORTLibraryPath); err != nil {
+	if err := prepareMusic(cfg); err != nil {
 		return Result{}, err
 	}
-	if err := os.MkdirAll(cfg.StableAudio3.OutputDir, 0o755); err != nil {
+	lease, err := reservation.Acquire(ctx)
+	if err != nil {
+		return Result{}, err
+	}
+	defer lease.Release()
+	if err := ctx.Err(); err != nil {
 		return Result{}, err
 	}
 
@@ -72,7 +103,7 @@ func (s *Service) Generate(ctx context.Context, cfg domain.AppConfig) (Result, e
 	opt.OutputWAV = outPath
 	opt.Observer = s.observerSnapshot()
 
-	rt, err := sa3.LoadInitialise(opt)
+	rt, err := loadMusicRuntime(opt)
 	if err != nil {
 		return Result{}, err
 	}
@@ -107,6 +138,10 @@ func (s *Service) Generate(ctx context.Context, cfg domain.AppConfig) (Result, e
 		return Result{}, ctx.Err()
 	}
 
+	if err := writeMetadata(outPath, Metadata{Genre: SelectedGenre(cfg)}); err != nil {
+		_ = os.Remove(outPath)
+		return Result{}, err
+	}
 	_ = TrimCache(cfg.StableAudio3.OutputDir, cfg.StableAudio3.CacheLimit, outPath)
 	return Result{
 		AudioPath: outPath,
@@ -117,8 +152,32 @@ func (s *Service) Generate(ctx context.Context, cfg domain.AppConfig) (Result, e
 	}, nil
 }
 
+type musicRuntime interface {
+	Synthesize(func(step, totalSteps int)) error
+	Close()
+}
+
+var loadMusicRuntime = func(opt sa3.Options) (musicRuntime, error) {
+	return sa3.LoadInitialise(opt)
+}
+
+// prepareMusic contains the non-runtime preflight and is replaceable by
+// package tests that inject a fake runtime.
+var prepareMusic = func(cfg domain.AppConfig) error {
+	if strings.TrimSpace(cfg.StableAudio3.ModelDir) == "" || strings.TrimSpace(cfg.StableAudio3.OutputDir) == "" {
+		return generation.ErrProviderNotConfigured
+	}
+	if err := generation.ConfigureExecutionProvider(cfg.LocalInference.ExecutionProvider, cfg.LocalInference.DeviceID); err != nil {
+		return err
+	}
+	if err := generation.Init(cfg.LocalInference.ORTLibraryPath); err != nil {
+		return err
+	}
+	return os.MkdirAll(cfg.StableAudio3.OutputDir, 0o755)
+}
+
 func (s *Service) Fallback(cfg domain.AppConfig) (Result, error) {
-	path, err := PickFallback(cfg.StableAudio3.OutputDir)
+	path, err := PickFallbackForGenre(cfg.StableAudio3.OutputDir, SelectedGenre(cfg))
 	if err != nil {
 		return Result{}, err
 	}
@@ -127,6 +186,36 @@ func (s *Service) Fallback(cfg domain.AppConfig) (Result, error) {
 		Title:     filepath.Base(path),
 		Genre:     SelectedGenre(cfg),
 	}, nil
+}
+
+// ProtectResult prevents cache trimming from removing a WAV while it is in a
+// Player FIFO or being handed to the audio server. The returned function is
+// idempotent and should be called when ownership moves to another layer.
+func ProtectResult(path string) func() { return fileprotect.Acquire(path) }
+
+// RemoveResult removes only a generated result and its matching sidecar.
+func RemoveResult(path string) {
+	if path == "" {
+		return
+	}
+	_ = os.Remove(path)
+	_ = os.Remove(MetadataPath(path))
+}
+
+func writeMetadata(path string, metadata Metadata) error {
+	b, err := json.Marshal(metadata)
+	if err != nil {
+		return err
+	}
+	tmp := MetadataPath(path) + ".tmp"
+	if err := os.WriteFile(tmp, b, 0o644); err != nil {
+		return err
+	}
+	if err := os.Rename(tmp, MetadataPath(path)); err != nil {
+		_ = os.Remove(tmp)
+		return err
+	}
+	return nil
 }
 
 func resolveMusicSeed(mode string, fixed uint32) uint32 {

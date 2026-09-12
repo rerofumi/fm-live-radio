@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"fm-live-radio/internal/audiofmt"
+	"fm-live-radio/internal/fileprotect"
 
 	"github.com/google/uuid"
 )
@@ -25,6 +26,7 @@ const loudnessWindowMs = 50
 type tokenEntry struct {
 	path      string
 	expiresAt time.Time
+	release   func()
 }
 
 // loudnessEntry holds the marshalled JSON response for /loudness/<token> so
@@ -51,7 +53,11 @@ type Server struct {
 	tokens   map[string]tokenEntry
 	loudness map[string]loudnessEntry
 
-	gcStop chan struct{}
+	gcStop    chan struct{}
+	closeOnce sync.Once
+	// now is injectable so token expiry and cleanup tests can advance time
+	// without sleeping. Production servers use time.Now.
+	now func() time.Time
 }
 
 func Start() (*Server, error) {
@@ -66,6 +72,7 @@ func Start() (*Server, error) {
 		tokens:   map[string]tokenEntry{},
 		loudness: map[string]loudnessEntry{},
 		gcStop:   make(chan struct{}),
+		now:      time.Now,
 	}
 
 	mux := http.NewServeMux()
@@ -88,7 +95,23 @@ func Start() (*Server, error) {
 func (s *Server) BaseURL() string { return s.baseURL }
 
 func (s *Server) Close(ctx context.Context) error {
-	close(s.gcStop)
+	var releases []func()
+	s.closeOnce.Do(func() {
+		close(s.gcStop)
+		s.mu.Lock()
+		releases = make([]func(), 0, len(s.tokens))
+		for token, entry := range s.tokens {
+			if entry.release != nil {
+				releases = append(releases, entry.release)
+			}
+			delete(s.tokens, token)
+			delete(s.loudness, token)
+		}
+		s.mu.Unlock()
+	})
+	for _, release := range releases {
+		release()
+	}
 	err := s.srv.Shutdown(ctx)
 	_ = s.ln.Close()
 	return err
@@ -110,10 +133,11 @@ func (s *Server) RegisterFile(path string, ttl time.Duration) (string, error) {
 		return "", errors.New("path is directory")
 	}
 	tok := uuid.NewString()
-	exp := time.Now().Add(ttl)
+	exp := s.currentTime().Add(ttl)
+	release := fileprotect.Acquire(path)
 
 	s.mu.Lock()
-	s.tokens[tok] = tokenEntry{path: path, expiresAt: exp}
+	s.tokens[tok] = tokenEntry{path: path, expiresAt: exp, release: release}
 	s.mu.Unlock()
 
 	// Best-effort envelope precompute; failure must not affect audio URL.
@@ -171,14 +195,23 @@ func (s *Server) handleAudio(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var expiredRelease func()
+	var requestRelease func()
 	s.mu.Lock()
 	e, ok := s.tokens[tok]
-	if ok && time.Now().After(e.expiresAt) {
+	if ok && s.currentTime().After(e.expiresAt) {
+		expiredRelease = e.release
 		delete(s.tokens, tok)
 		delete(s.loudness, tok)
 		ok = false
 	}
+	if ok {
+		requestRelease = fileprotect.Acquire(e.path)
+	}
 	s.mu.Unlock()
+	if expiredRelease != nil {
+		expiredRelease()
+	}
 
 	if !ok {
 		http.NotFound(w, r)
@@ -191,6 +224,9 @@ func (s *Server) handleAudio(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", ct)
 	}
 
+	// Hold a request-scoped reference so expiry/GC cannot remove the file while
+	// ServeFile is reading it.
+	defer requestRelease()
 	http.ServeFile(w, r, e.path)
 }
 
@@ -214,20 +250,24 @@ func (s *Server) handleLoudness(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var expiredRelease func()
 	s.mu.Lock()
 	te, tok2 := s.tokens[tok]
-	if tok2 && time.Now().After(te.expiresAt) {
+	if tok2 && s.currentTime().After(te.expiresAt) {
+		expiredRelease = te.release
 		delete(s.tokens, tok)
 		delete(s.loudness, tok)
 		tok2 = false
 	}
+	le, hasEnv := s.loudness[tok]
+	s.mu.Unlock()
+	if expiredRelease != nil {
+		expiredRelease()
+	}
 	if !tok2 {
-		s.mu.Unlock()
 		http.NotFound(w, r)
 		return
 	}
-	le, hasEnv := s.loudness[tok]
-	s.mu.Unlock()
 
 	if !hasEnv {
 		// Non-WAV / decode failure: signal "no envelope available".
@@ -246,15 +286,57 @@ func (s *Server) gcLoop() {
 		case <-s.gcStop:
 			return
 		case <-t.C:
-			now := time.Now()
-			s.mu.Lock()
-			for k, v := range s.tokens {
-				if now.After(v.expiresAt) {
-					delete(s.tokens, k)
-					delete(s.loudness, k)
-				}
-			}
-			s.mu.Unlock()
+			s.CleanupExpired(s.currentTime())
 		}
 	}
+}
+
+// CleanupExpired removes tokens whose TTL has elapsed at now. It is also the
+// explicit deterministic cleanup boundary used by tests and shutdown hooks;
+// releases happen after the token map lock is dropped.
+func (s *Server) CleanupExpired(now time.Time) {
+	releases := make([]func(), 0)
+	s.mu.Lock()
+	for k, v := range s.tokens {
+		if now.After(v.expiresAt) {
+			if v.release != nil {
+				releases = append(releases, v.release)
+			}
+			delete(s.tokens, k)
+			delete(s.loudness, k)
+		}
+	}
+	s.mu.Unlock()
+	for _, release := range releases {
+		release()
+	}
+}
+
+func (s *Server) currentTime() time.Time {
+	if s.now != nil {
+		return s.now()
+	}
+	return time.Now()
+}
+
+// ReleaseAudioURL explicitly transfers ownership away from a registered
+// token before its TTL. It is safe to call repeatedly and is useful when the
+// player discards a selected item during shutdown or replacement.
+func (s *Server) ReleaseAudioURL(audioURL string) bool {
+	prefix := s.baseURL + "/audio/"
+	if !strings.HasPrefix(audioURL, prefix) {
+		return false
+	}
+	tok := strings.TrimPrefix(audioURL, prefix)
+	s.mu.Lock()
+	e, ok := s.tokens[tok]
+	if ok {
+		delete(s.tokens, tok)
+		delete(s.loudness, tok)
+	}
+	s.mu.Unlock()
+	if ok && e.release != nil {
+		e.release()
+	}
+	return ok
 }

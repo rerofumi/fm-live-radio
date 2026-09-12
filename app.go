@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-	"time"
 
 	"fm-live-radio/internal/audio"
 	"fm-live-radio/internal/domain"
@@ -128,6 +127,7 @@ func (a *App) LoadConfig() (domain.AppConfig, error) {
 
 // SaveConfig persists config and applies it to runtime.
 func (a *App) SaveConfig(cfg domain.AppConfig) error {
+	cfg.StableAudio3.Genre = store.NormalizeStableAudio3Genre(cfg.StableAudio3.Genre)
 	a.mu.Lock()
 	s := a.store
 	p := a.player
@@ -140,7 +140,7 @@ func (a *App) SaveConfig(cfg domain.AppConfig) error {
 		}
 	}
 	if p != nil {
-		p.UpdateConfig(cfg)
+		p.UpdateConfigFromSave(cfg)
 	}
 	return nil
 }
@@ -249,9 +249,6 @@ func (a *App) PrefetchTalk() {
 	h := a.history
 	a.mu.Unlock()
 	if p != nil {
-		p.PrefetchTalk(ts, cfg, h)
-		p.PrefetchMusic(ms, cfg)
+		p.PrefetchNext(ts, ms, cfg, h)
 	}
-	// small delay to keep binding non-blocking even after implementation
-	time.Sleep(0)
 }

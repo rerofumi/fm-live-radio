@@ -29,11 +29,21 @@ var ErrEmptyText = errors.New("irodori text is empty")
 var ErrAllSentencesFailed = errors.New("irodori all sentences failed; refusing all-silence success")
 
 type Service struct {
-	mu sync.Mutex
+	mu      sync.Mutex
+	arbiter *generation.Arbiter
 }
 
 func New() *Service {
-	return &Service{}
+	return NewWithArbiter(generation.SharedArbiter())
+}
+
+// NewWithArbiter provides an isolated scheduler for deterministic service
+// tests. Product construction uses the process-shared arbiter via New.
+func NewWithArbiter(arbiter *generation.Arbiter) *Service {
+	if arbiter == nil {
+		arbiter = generation.SharedArbiter()
+	}
+	return &Service{arbiter: arbiter}
 }
 
 func (s *Service) SynthesizeWav(ctx context.Context, cfg domain.AppConfig, text string) ([]byte, error) {
@@ -48,7 +58,32 @@ func (s *Service) SynthesizeWavWithObserver(ctx context.Context, cfg domain.AppC
 }
 
 func (s *Service) synthesizeWav(ctx context.Context, cfg domain.AppConfig, text string, observer pipeline.EventObserver) ([]byte, error) {
-	if err := runPreflight(cfg, observer); err != nil {
+	arbiter := s.arbiter
+	if arbiter == nil {
+		arbiter = generation.SharedArbiter()
+	}
+	reservation := generation.ReservationFromContext(ctx, generation.KindTalk)
+	if reservation != nil && reservation.Arbiter() != arbiter {
+		reservation.Release()
+		reservation = nil
+	}
+	if reservation == nil {
+		var err error
+		reservation, err = arbiter.Reserve(ctx, generation.KindTalk)
+		if err != nil {
+			return nil, err
+		}
+	}
+	defer reservation.Release()
+	if err := preflightTTS(cfg, observer); err != nil {
+		return nil, err
+	}
+	lease, err := reservation.Acquire(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer lease.Release()
+	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 	s.mu.Lock()
@@ -60,6 +95,19 @@ func (s *Service) synthesizeWav(ctx context.Context, cfg domain.AppConfig, text 
 	}
 	return wav, err
 }
+
+type ttsRuntime interface {
+	SynthesizeWithOptions(pipeline.Options) error
+	Close()
+}
+
+var loadTTSRuntime = func(opt pipeline.Options) (ttsRuntime, error) {
+	return pipeline.LoadInitialise(opt)
+}
+
+// preflightTTS is replaceable by package tests so fake runtimes can exercise
+// the scheduler without requiring an ONNX model bundle.
+var preflightTTS = runPreflight
 
 func (s *Service) synthesizeSentences(ctx context.Context, cfg domain.AppConfig, text string, observer pipeline.EventObserver) ([]byte, error) {
 	sentences := splitSentences(text)
@@ -87,10 +135,13 @@ func (s *Service) synthesizeSentences(ctx context.Context, cfg domain.AppConfig,
 	// GPU cache. The service mutex serializes inference and owns the Close call.
 	baseOpt := pipelineOptions(cfg)
 	baseOpt.Observer = observer
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if observer != nil {
 		observer(pipeline.EventLoadStart)
 	}
-	rt, err := pipeline.LoadInitialise(baseOpt)
+	rt, err := loadTTSRuntime(baseOpt)
 	if observer != nil {
 		observer(pipeline.EventLoadEnd)
 	}
@@ -170,7 +221,7 @@ func runPreflight(cfg domain.AppConfig, observer pipeline.EventObserver) error {
 	return nil
 }
 
-func (s *Service) synthesizeSentencePCM(ctx context.Context, rt *pipeline.Runtime, baseOpt pipeline.Options, text string) ([]byte, error) {
+func (s *Service) synthesizeSentencePCM(ctx context.Context, rt ttsRuntime, baseOpt pipeline.Options, text string) ([]byte, error) {
 	tempDir, err := os.MkdirTemp("", "fm-live-radio-sentence-")
 	if err != nil {
 		return nil, err
@@ -234,7 +285,7 @@ func pipelineOptions(cfg domain.AppConfig) pipeline.Options {
 // synthesizeToFile waits for the inference goroutine even after cancellation.
 // ORT has no portable in-flight cancellation API; returning early and closing
 // the Runtime would race with Run and can corrupt later Talk/BGM requests.
-func synthesizeToFile(ctx context.Context, rt *pipeline.Runtime, opt pipeline.Options) error {
+func synthesizeToFile(ctx context.Context, rt ttsRuntime, opt pipeline.Options) error {
 	done := make(chan error, 1)
 	go func() {
 		done <- rt.SynthesizeWithOptions(opt)

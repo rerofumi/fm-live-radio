@@ -4,6 +4,7 @@
 
 | 計画 | Tier | 内容 | 状態 | 備考 |
 | --- | --- | --- | --- | --- |
+| [plan_20260912_generation_control](plan_20260912_generation_control/plan.md) | Light | 音楽優先の生成排他制御、2曲先読みとジャンル変更時の破棄 | done | 2026-09-12 REQ-01〜08最終独立受入pass。worklog あり / E2E 対象外。正本: [90_status](plan_20260912_generation_control/90_status.md) |
 | [plan_20260907_irodori_v4](plan_20260907_irodori_v4/60_review_packet.md) | Full | Go/ONNXを維持したIrodori v4.1移行 | done | v4.1採用承認済み。新規既定と採用判定の独立受入pass。利用者のアプリ動作確認・最終承認を受領し、全REQ受入完了。正本: [90_status](plan_20260907_irodori_v4/90_status.md) |
 | [plan_20260611_1](plan_20260611_1/10_claim.md) | 旧Full相当 | ローカル音楽・TTS導入 | 未整理 | 旧計画、statusなし |
 | [plan_20260612_1](plan_20260612_1/10_claim.md) | 旧Full相当 | CUDA高速化 | 未整理 | 旧計画、statusなし |

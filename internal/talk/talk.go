@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"fm-live-radio/internal/domain"
+	"fm-live-radio/internal/generation"
 	"fm-live-radio/internal/llm"
 	"fm-live-radio/internal/localtts"
 	"fm-live-radio/internal/localtts/irodori/pipeline"
@@ -62,6 +63,13 @@ func (s *Service) observerSnapshot() pipeline.EventObserver {
 }
 
 func (s *Service) Generate(ctx context.Context, cfg domain.AppConfig, used map[string]bool) (Result, error) {
+	// Player may register a Talk reservation before this service starts its
+	// RSS/LLM work. Ensure early failures release that still-unconsumed entry;
+	// localtts consumes it exactly once when runtime work begins.
+	reservation := generation.ReservationFromContext(ctx, generation.KindTalk)
+	if reservation != nil {
+		defer reservation.Release()
+	}
 	if !cfg.Talk.Enabled {
 		return Result{}, ErrDisabled
 	}

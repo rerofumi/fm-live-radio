@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"fm-live-radio/internal/audiofmt"
+	"fm-live-radio/internal/fileprotect"
 )
 
 func writeSineWav(t *testing.T, path string, sampleRate, channels int, duration time.Duration, amp int16) {
@@ -229,5 +230,66 @@ func TestServerLoudness_OPTIONSPreflightReturns204WithCORS(t *testing.T) {
 	}
 	if got := resp.Header.Get("Access-Control-Allow-Methods"); got == "" {
 		t.Errorf("CORS Allow-Methods empty")
+	}
+}
+
+func TestServerFileProtectionReleasesOnURLExpiryAndClose(t *testing.T) {
+	dir := t.TempDir()
+	wavPath := filepath.Join(dir, "tone.wav")
+	writeSineWav(t, wavPath, 1000, 1, 200*time.Millisecond, 16384)
+
+	s := newTestServer(t)
+	url, err := s.RegisterFile(wavPath, time.Minute)
+	if err != nil {
+		t.Fatalf("RegisterFile: %v", err)
+	}
+	if !fileprotect.Protected(wavPath) {
+		t.Fatal("registered WAV is not protected")
+	}
+	resp, _ := doGet(t, url)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("audio GET status=%d, want 200", resp.StatusCode)
+	}
+	if !s.ReleaseAudioURL(url) || fileprotect.Protected(wavPath) {
+		t.Fatal("ReleaseAudioURL did not release protection")
+	}
+	if s.ReleaseAudioURL(url) {
+		t.Fatal("second ReleaseAudioURL unexpectedly released token")
+	}
+
+	expiring, err := s.RegisterFile(wavPath, time.Minute)
+	if err != nil {
+		t.Fatalf("RegisterFile expiring: %v", err)
+	}
+	if !fileprotect.Protected(wavPath) {
+		t.Fatal("second token is not protected")
+	}
+	future := time.Now().Add(2 * time.Minute)
+	s.now = func() time.Time { return future }
+	s.CleanupExpired(future)
+	if fileprotect.Protected(wavPath) {
+		t.Fatal("CleanupExpired did not release protection")
+	}
+	if s.ReleaseAudioURL(expiring) {
+		t.Fatal("expired token still registered")
+	}
+
+	closeURL, err := s.RegisterFile(wavPath, time.Hour)
+	if err != nil {
+		t.Fatalf("RegisterFile close token: %v", err)
+	}
+	if !fileprotect.Protected(wavPath) {
+		t.Fatal("close token is not protected")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if err := s.Close(ctx); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+	if fileprotect.Protected(wavPath) {
+		t.Fatalf("Close left %s protected", wavPath)
+	}
+	if s.ReleaseAudioURL(closeURL) {
+		t.Fatal("closed token still registered")
 	}
 }

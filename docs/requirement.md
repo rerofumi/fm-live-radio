@@ -1,12 +1,22 @@
 # Current Requirements
 
-最終確認日: 2026-09-08
+最終確認日: 2026-09-12
 
 この文書は、現在実装されている `fm-live-radio` の要求仕様を示す。`docs/plan_*` の検討内容ではなく、現行コードと一致する要件のみを記載する。
 
 ## 2026-09-08 as-built（明示試験運用）
 
 Irodori v4.1 のGo/ONNX経路、manifest/hash preflight、Runtime再利用、取消join/close、CPU/CUDA別プロセス実行、およびローカルRSS/LLM fixture E2Eハーネスを実装した。利用者の採用承認に基づき、新規設定の既定モデルは `model/irodori-v4.1` とする。保存済みv3・任意パスは保持する。検証CLIではmodel/EPを明示する。読み・声質・自然さは自動判定せず、REQ-09は聞き取れるアナウンス品質を利用者が受け入れたE4に基づく。
+
+## 2026-09-12 as-built（生成リソース制御）
+
+音楽と Talk のローカル生成は、Runtime のロード直前から推論完了・`Close` 完了までプロセス共有の容量1 `generation.Arbiter` で直列化する。待機列は音楽を優先し、同種は受付順を維持する。待機中の取消はロードせず、稼働後の取消・Skip・設定変更・終了は実 worker の join と Runtime の `Close` 完了後に枠を解放する。既存の `maxWorkers` 設定や execution provider はこの排他を解除しない。
+
+未再生 BGM は ready と予約を合わせて最大2曲の FIFO とし、最初の1曲が返却可能になった時点で再生を進め、不足分だけを逐次補充する。同じ BGM/Talk 需要は同期取得と先読みで共有し、同一先読み契機では音楽予約を先に登録する。Talk が遅れている場合は Talk の slot を消費せず、ready BGM または同じ音楽需要へ進む。Talk の生成失敗は従来どおり slot を一度消費して BGM fallback へ進み、同じ境界で無限再試行しない。
+
+ジャンル変更は音楽専用の世代を進め、旧 ready/予約の結果を公開せず、現在再生中の BGM・Talk・記事履歴は保持する。変更後に選択を確定する次の BGM は新ジャンルとなる。設定保存で正規化後のジャンルが同値の場合は音楽以外の状態をリセットしない。生成 WAV には生成時ジャンルの sidecar を保存し、fallback は一致する sidecar を確認できる WAV だけを候補にする。不明または不一致の WAV に現在ジャンルを付けて表示しない。
+
+`StableAudio3.cacheLimit` はディスク上の WAV 件数上限であり、未再生 BGM 2曲の枠とは別である。FIFO、生成結果、音声 URL の受渡し中は共有参照保護で WAV/sidecar を保持し、複数の保護 path は `TrimCache` の整理対象から外す。audio server の token は TTL、明示解放、Close で無効化し、HTTP 読み取り中は request 単位の参照を保持する。
 
 ## 目的
 
@@ -18,7 +28,7 @@ Irodori v4.1 のGo/ONNX経路、manifest/hash preflight、Runtime再利用、取
 - Wails + Go + React によるデスクトップアプリとして動作する。
 - 開発・検証コマンドは `mise` 経由で実行できる必要がある。
 - OpenAI 互換 Chat Completions API を利用できる環境を前提とする。
-- Stable Audio 3 および IrodoriTTS v3 を使うため、対応するローカルモデルと ONNX Runtime が利用可能である必要がある。
+- Stable Audio 3 および IrodoriTTS v4.1（保存済みv3・任意パスも利用可能）を使うため、対応するローカルモデルと ONNX Runtime が利用可能である必要がある。
 
 ## 機能要件
 
@@ -28,6 +38,9 @@ Irodori v4.1 のGo/ONNX経路、manifest/hash preflight、Runtime再利用、取
 - 再生対象は BGM、Talk、無音ギャップを扱える必要がある。
 - BGM と Talk の間には、設定された範囲内の無音ギャップを挿入する。
 - BGM を一定曲数再生した後に Talk を差し込む。
+- ローカル生成の Runtime は音楽優先・同種 FIFO の共有排他枠で管理し、実行中の処理を中断せず完了後に次の生成へ進む。
+- 未再生 BGM は最大2曲を FIFO で先読みし、1曲目の準備完了から再生できる。不足分だけを補充する。
+- Talk が未完成の Talk slot では、slot を消費せず ready BGM または同じ音楽需要へ進み、Talk 完成後の次の境界で Talk を再生する。
 - BGM 音量と Talk 音量は個別に調整できる必要がある。
 - 現在再生中の種別、タイトル、進捗、再生時間を UI に表示する。
 - Talk と Music の生成・先読み状態を UI に表示する。
@@ -50,7 +63,9 @@ Irodori v4.1 のGo/ONNX経路、manifest/hash preflight、Runtime再利用、取
 - 既定ジャンルは `chill lo-fi`。`config.json` の `stableAudio3.genre` が空または未対応値の場合は既定値へ正規化される。
 - Stable Audio 3 に渡す prompt では、選択ジャンル名だけでなく、楽器、音色、リズム、雰囲気を含むジャンル説明文へ展開される必要がある。
 - Stable Audio 3 の生成に失敗した場合、利用可能な生成済み WAV があれば fallback として使える必要がある。
+- BGM fallback は生成時ジャンルを確認できる sidecar が現在ジャンルと一致する WAV に限る。不明な provenance は fallback 候補にしない。
 - 生成済み BGM cache は設定された上限に基づいて整理される必要がある。
+- cache の整理上限はディスク上の保存件数であり、未再生 BGM の先読み2曲とは独立する。再生・URL登録中の WAV は参照保護する。
 
 ### Talk
 
@@ -63,9 +78,9 @@ Irodori v4.1 のGo/ONNX経路、manifest/hash preflight、Runtime再利用、取
 - Talk 原稿はラジオ DJ 風の短いニュース紹介として生成される。
 - Talk 生成結果は一時 WAV ファイルとして保存され、再生できる必要がある。
 
-### IrodoriTTS v3
+### IrodoriTTS v4.1（保存済みv3互換）
 
-- IrodoriTTS v3 のモデルディレクトリを設定できる必要がある。
+- IrodoriTTS v4.1（保存済みv3互換）のモデルディレクトリを設定できる必要がある。
 - narrator ディレクトリと任意の参照 WAV path を設定できる必要がある。
 - 参照 WAV path が空の場合、narrator ディレクトリ内の WAV を参照音声として利用できる必要がある。
 - 参照 WAV が見つからない場合でも、参照音声なしで合成を試みる。
@@ -75,7 +90,7 @@ Irodori v4.1 のGo/ONNX経路、manifest/hash preflight、Runtime再利用、取
 
 ### ローカル推論
 
-- Stable Audio 3 と IrodoriTTS v3 は共有の ONNX Runtime 初期化機構を使う。
+- Stable Audio 3 と IrodoriTTS v4.1（保存済みv3互換）は共有の ONNX Runtime 初期化機構を使う。
 - ONNX Runtime DLL path は設定値または環境変数から指定できる。
 - execution provider は `auto`、`cuda`、`cpu` を選択できる。
 - `auto` は CUDA が利用できない場合 CPU に fallback する。
@@ -97,6 +112,8 @@ Irodori v4.1 のGo/ONNX経路、manifest/hash preflight、Runtime再利用、取
 - 再生用 audio URL は token 付きで発行し、一定時間後に無効化される。
 - API key はログに積極的に出力しない。
 - 生成処理は UI 操作を長時間ブロックしないよう、Talk と Music の prefetch を利用する。
+- 同じ生成需要の同期取得と先読みを重複させず、先読み契機で Music と Talk が同時に待機する場合は Music を先に受け付ける。
+- 生成の取消・終了時は実処理の join と Runtime close を待ってから資源枠を解放する。audio URL の有効参照中は対応ファイルを削除しない。
 - ローカル生成による BGM / Talk の基本再生フローが維持される。
 - loudness envelope の取得失敗や、非 WAV ファイル / 旧 token に対して 204 / 404 が返っても、`RegisterFile` による audio URL 発行と再生は失敗させない。
 - loudness envelope の参照は描画 frame ごとに network polling を行わない。item 切替時に一度だけ取得する。

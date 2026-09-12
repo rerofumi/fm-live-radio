@@ -57,3 +57,13 @@ These links were revalidated in `tts-research` on 2026-06-12 and copied here as 
 | https://github.com/Aratako/Irodori-TTS/tree/8224dafb46d0aba89209a8f905f1cb7e3299d9c1 | 公式推論実装 | 2026-09-07 | 実行したRuntimeKey/SamplingRequest、model config、依存 |
 | https://github.com/mtsmfm/Irodori-TTS-ONNX/tree/5df35d8720f810902971745a5ad961ff436bd73c | 既存exporter一次ソース | 2026-09-07 | wrapper/APIと旧fork固定の確認 |
 | https://github.com/Aratako/Irodori-TTS-Server | 公式サーバー | 2026-09-07 | 別プロセス案の存在確認のみ。API実行未検証・未採用 |
+
+## 2026-09-12 生成調停のローカル確認
+
+外部資料の再検証・新規 API 採用なし。確認版・実行条件と結果は [generation-scheduling.md](generation-scheduling.md)。
+
+| Source | Source Type | Confirmed | Related File | Why It Matters |
+| --- | --- | --- | --- | --- |
+| [generation/arbiter.go](../../internal/generation/arbiter.go)、[localtts/service.go](../../internal/localtts/service.go)、[musicgen/service.go](../../internal/musicgen/service.go) | 実装後の Go as-built | 2026-09-12 | `generation-scheduling.md` | 調停の適用範囲、Runtime の寿命、join/Close、予約転送 |
+| [player.go](../../internal/player/player.go)、[cache.go](../../internal/musicgen/cache.go)、[audio/server.go](../../internal/audio/server.go)、[fileprotect/guard.go](../../internal/fileprotect/guard.go) | 実装後の Go as-built | 2026-09-12 | `generation-scheduling.md` | 2曲先読み、genre epoch、fallback provenance、WAV/token 参照保護 |
+| [mise.toml](../../mise.toml)、[frontend/package.json](../../frontend/package.json) | 現行コマンド定義と実行確認 | 2026-09-12 | `generation-scheduling.md` | Go/race/frontend/Wails build の検証条件 |
